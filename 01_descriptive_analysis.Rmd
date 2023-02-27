@@ -601,7 +601,7 @@ plot_getis_recent
 ggsave("02_output/plots/Fig 6. Spatial Analysis for Recent Exposure.png",
        plot_getis_recent,
        dpi = 400,
-       scale = 1.2,
+       scale = 0.9,
        device = grDevices::png)
 ```
 
@@ -649,7 +649,7 @@ plot_getis_historical
 ggsave("02_output/plots/Fig 7. Spatial Analysis for Historical Exposure.png",
        plot_getis_historical,
        dpi = 400,
-       scale = 1.2,
+       scale = 0.9,
        device = grDevices::png)
 ```
 
