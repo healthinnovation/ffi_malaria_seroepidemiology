@@ -1,0 +1,986 @@
+---
+title: "Descriptive analysis"
+date: "`r Sys.Date()`"
+output: 
+  rmdformats::downcute:
+    self_contained: true
+    highlight: kate
+    toc_depth: 3
+    default_style: dark
+    code_folding: hide
+    code_download: true
+    highlight_downlit: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+## Global options
+knitr::opts_chunk$set(
+  cache = TRUE,
+  warnings = FALSE,
+  messages = FALSE
+)
+
+library(tidyverse)
+library(sf)
+library(ggsflabel)
+source("03_functions/seropositivy_summarise.R")
+```
+
+# Import data
+
+```{r}
+ffi_total <- readRDS(file = "01_data/processed/ffi_total.rds")
+ffi_household <- readRDS(file = "01_data/processed/ffi_household.rds")
+data_malaria <- readRDS(file = "01_data/processed/data_malaria.rds")
+data_malaria_long <- readRDS(file = "01_data/processed/data_malaria_long.rds")
+communities_sf <- readRDS(file = "01_data/processed/communities_sf.rds")
+hf_shp <- readRDS(file = "01_data/processed/hf_shp.rds")
+poblacion <- readRDS("./01_data/raw/poblacion_inei_2017.rds")
+```
+
+
+# Figures
+
+## Figure 2
+
+
+```{r dpi = 300, fig.align='center'}
+fig2_malaria_api_belen_indiana_A <- data_malaria_long %>% 
+  filter(!(malaria == "Confirmed P. Vivax" & `Date by month` < lubridate::ymd("2009-01-01"))) %>% 
+  mutate(
+    `Date by month` = lubridate::ceiling_date(`Date by month`,
+                                              unit = "year")
+  ) %>% 
+  group_by(District, malaria, `Date by month`) %>%
+  summarise(cases = sum(cases)) %>% 
+  ungroup() %>% 
+  mutate(
+    cases = case_when(
+      District == "BELEN" ~ (cases/69608)*1000,
+      District == "INDIANA" ~ (cases/11648)*1000,
+    )
+  ) %>% 
+  ggplot(aes(x = `Date by month`, y = cases,
+             color = District)) +
+  geom_line(linewidth = 0.8) +
+  facet_wrap(vars(malaria)) +
+  labs(
+    x = NULL,
+    y = "API"
+  ) +
+  innovar::scale_color_innova("npr") +
+  geom_hline(yintercept=40, linetype="dashed", 
+                color = "black", linewidth = 2) +
+  annotate("text", label = "Very low \ntransmission",
+           y = 35, x = lubridate::ymd("2019-01-01")) +
+  theme_minimal()
+
+fig2_malaria_api_belen_indiana_A
+```
+
+```{r eval=FALSE}
+ggsave("02_output/plots/Fig 2. Malaria Cases in Indiana and Belen, 2000-2021 - A.png", 
+       fig2_malaria_api_belen_indiana_A,
+       width = 8,
+       height = 4,
+       dpi = 300,
+       bg = "white")
+```
+
+
+
+```{r dpi = 300, fig.align='center'}
+fig2_malaria_api_belen_indiana_B <- data_malaria_long %>% 
+  filter(!(malaria == "Confirmed P. Vivax" & `Date by month` < lubridate::ymd("2009-01-01"))) %>% 
+  mutate(
+    `Date by month` = lubridate::ceiling_date(`Date by month`,
+                                              unit = "year")
+  ) %>% 
+  group_by(District, malaria, `Date by month`) %>%
+  summarise(cases = sum(cases)) %>% 
+  ungroup() %>% 
+  mutate(
+    cases = case_when(
+      District == "BELEN" ~ (cases/69608)*1000,
+      District == "INDIANA" ~ (cases/11648)*1000,
+    )
+  ) %>% 
+  ggplot(aes(x = `Date by month`, y = cases,
+             color = District)) +
+  geom_line(linewidth = 0.8) +
+  facet_wrap(vars(malaria)) +
+  labs(
+    x = NULL,
+    y = "API"
+  ) +
+  innovar::scale_color_innova("npr") +
+  geom_hline(yintercept=100, linetype="dashed", 
+                color = "black", linewidth = 2) +
+  annotate("text", label = "Very low \ntransmission",
+           y = 80, x = lubridate::ymd("2019-01-01")) +
+  theme_minimal()
+
+fig2_malaria_api_belen_indiana_B
+```
+
+
+```{r eval=FALSE}
+ggsave("02_output/plots/Fig 2. Malaria Cases in Indiana and Belen, 2000-2021 - B.png", 
+       fig2_malaria_api_belen_indiana_B,
+       width = 8,
+       height = 5,
+       dpi = 300,
+       bg = "white")
+```
+
+
+## Figure 3
+
+
+```{r}
+sero_timeofmalaria_district_distance_rh_hf_sampling <- seropositivy_summarise(
+    ffi_total,
+    "timeofmalaria",
+    age_cat,
+    distance_to_rh_hf_sampl
+  ) %>%
+  ungroup() %>% 
+  mutate(
+    distance_to_rh_hf_sampl = fct_relevel(distance_to_rh_hf_sampl, 
+                                      "Proximate", "Moderate",
+                                      "Distant", "Extra Distant")
+  ) %>% 
+  ggplot(
+    aes(
+      x = age_cat,
+      y = result_exposure,
+      color = exposure,
+      group = exposure
+    )
+  ) +
+  geom_point() +
+  geom_line() +
+  facet_grid(
+    vars(distance_to_rh_hf_sampl),
+    vars(ffi_is_district)    
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(),
+    #limits = c(0, 0.50)
+  ) +
+  labs(
+    x = "Age",
+    y = "Seropositivity",
+    title = str_wrap("Seropositivity according to Time of Exposure to malaria by District and distance category of the communities to Loreto Regional Hospital and Health Facilities on a Sampling Basis", 80)
+  ) +
+  guides(
+    color = guide_legend("Malaria")
+  ) +
+  innovar::scale_color_innova("npr") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(
+      size = 14,
+      hjust = 0.5,
+      face = "bold"
+    ),
+    strip.text = element_text(
+      size = 12,
+      face = "bold"
+    ),
+    legend.title = element_text(
+      size = 12,
+      face = "bold"
+    )
+  )
+
+sero_timeofmalaria_district_distance_rh_hf_sampling
+```
+
+```{r eval=FALSE}
+ggsave(
+  "./02_output/plots/Fig 3. Seropositivity according to time of exposure to malaria by district and distance category.png",
+  sero_timeofmalaria_district_distance_rh_hf_sampling,
+  dpi = 300,
+  bg = "white",
+  width = 12,
+  height = 8.5
+)
+```
+
+
+## Figure 4
+
+```{r}
+malaria_seropositivity_type_exposure_belen <- ffi_total %>%
+  drop_na(pf_recent:pv_historic) %>%
+  pivot_longer(
+    cols = pf_recent:pv_historic,
+    names_to = "malaria",
+    values_to = "result_malaria"
+  ) %>%
+  filter(ffi_is_district == "Belen") %>%
+  mutate(
+    malaria = case_when(
+      malaria == "pf_recent" ~ "Recent P. Falciparum",
+      malaria == "pf_historic" ~ "Historical P. Falciparum",
+      malaria == "pv_recent" ~ "Recent P. Vivax",
+      malaria == "pv_historic" ~ "Historical P. Vivax"
+    ),
+    ffi_is_community = str_to_title(ffi_is_community),
+    ffi_is_community = fct_reorder(
+      ffi_is_community,
+      distance_to_rh_sampl_num,
+      .desc = TRUE
+    )
+  ) %>%
+  ggplot(aes(
+    x = ffi_is_community,
+    fill = result_malaria
+  )) +
+  facet_wrap(vars(malaria)) +
+  geom_bar(position = "fill", color = "black") +
+  coord_flip(ylim = c(0, 0.25)) +
+  scale_y_continuous(
+    labels = scales::percent_format()
+  ) +
+  #ggsci::scale_fill_lancet() +
+  innovar::scale_fill_innova("npr") +
+  labs(
+    title = str_wrap("Serological results by plasmodium type of malaria in the Belen District", 100),
+    x = "Communities",
+    y = "Percentage"
+  ) +
+  guides(
+    fill = guide_legend("Results")
+  ) +  
+  theme_minimal() +
+  theme(
+    strip.text = element_text(
+      face = "bold",
+      size = 11
+    ),
+    axis.title = element_text(
+      face = "bold",
+      size = 11
+    ),
+    legend.title = element_text(
+      face = "bold",
+      size = 11
+    )
+  )
+
+malaria_seropositivity_type_exposure_belen
+```
+
+```{r eval=FALSE}
+ggsave(
+  "./02_output/plots/Fig 4. Malaria Seropositivity by type of exposure and plasmodium in Belen.png",
+  malaria_seropositivity_type_exposure_belen,
+  dpi = 300,
+  bg = "white",
+  width = 10,
+  height = 9
+)
+```
+
+
+## Figure 5
+
+```{r}
+malaria_seropositivity_type_exposure_indiana <- ffi_total %>%
+  drop_na(pf_recent:pv_historic) %>%
+  pivot_longer(
+    cols = pf_recent:pv_historic,
+    names_to = "malaria",
+    values_to = "result_malaria"
+  ) %>%
+  mutate(
+    malaria = case_when(
+      malaria == "pf_recent" ~ "Recent P. Falciparum",
+      malaria == "pf_historic" ~ "Historical P. Falciparum",
+      malaria == "pv_recent" ~ "Recent P. Vivax",
+      malaria == "pv_historic" ~ "Historical P. Vivax"
+    ),
+    ffi_is_community = str_to_title(ffi_is_community),
+  ) %>%
+  filter(ffi_is_district == "Indiana") %>%
+  mutate(
+    ffi_is_community = fct_reorder(
+      ffi_is_community,
+      distance_to_rh_sampl_num,
+      .desc = TRUE
+    )
+  ) %>%
+  ggplot(aes(
+    x = ffi_is_community,
+    fill = result_malaria
+  )) +
+  facet_wrap(vars(malaria)) +
+  geom_bar(position = "fill", color = "black") +
+  coord_flip(ylim = c(0, 0.25)) +
+  scale_y_continuous(
+    labels = scales::percent_format()
+  ) +
+  #ggsci::scale_fill_lancet() +
+  innovar::scale_fill_innova("npr") +
+  labs(
+    title = str_wrap("Serological results by plasmodium type of malaria in the Indiana District", 100),
+    x = "Communities",
+    y = "Percentage"
+  ) +
+  guides(
+    fill = guide_legend("Results")
+  ) +  
+  theme_minimal() +
+  theme(
+    strip.text = element_text(
+      face = "bold",
+      size = 11
+    ),
+    axis.title = element_text(
+      face = "bold",
+      size = 11
+    ),
+    legend.title = element_text(
+      face = "bold",
+      size = 11
+    )
+  )
+
+malaria_seropositivity_type_exposure_indiana
+```
+
+```{r eval=FALSE}
+ggsave(
+  "./02_output/plots/Fig 4. Malaria Seropositivity by type of exposure and plasmodium in Indiana.png",
+  malaria_seropositivity_type_exposure_indiana,
+  dpi = 300,
+  bg = "white",
+  width = 10,
+  height = 9
+)
+```
+
+## Figure 6 & 7
+
+### Pre-processing
+
+```{r}
+ffi_prevalence_by_household <- ffi_total %>% 
+  mutate(
+    across(
+      c(pf_recent:pv_historic, 
+        recent_exposure, historical_exposure),
+      ~ case_when(
+        . == "Positive" ~ 1,
+        TRUE ~ 0
+      )
+    )
+  ) %>% 
+  group_by(
+    ffi_is_district,
+    ffi_is_health_facility_name,
+    ffi_is_community, 
+    ffi_is_cod_com,
+    ffi_is_cod_household
+  ) %>% 
+  summarise(
+    examined = n(),
+    across(
+      c(pf_recent:pv_historic, 
+        recent_exposure, historical_exposure),
+      sum
+    )
+  ) %>% 
+  ungroup() %>% 
+  mutate(
+    across(
+      c(pf_recent:pv_historic, 
+        recent_exposure, historical_exposure),
+      ~ ./examined,
+      .names = "prevalence_{.col}"
+    )
+  ) %>% 
+  left_join(
+    ffi_household %>% 
+      select(ffi_is_community = ffi_h_community,
+             ffi_is_cod_household = ffi_h_code_household,
+             ffi_gps_long, ffi_gps_lat)
+  ) %>% 
+  mutate(
+    cod_id = paste0(ffi_is_cod_com, ffi_is_cod_household)
+  )
+```
+
+
+### Spatial Analysis
+
+```{r}
+library(spdep)
+```
+
+```{r}
+ffi_prevalence_by_household_sf <- ffi_prevalence_by_household %>% 
+  st_as_sf(
+    coords = c("ffi_gps_long", "ffi_gps_lat"),
+    crs = 4326
+  ) 
+  
+
+ffi_prevalence_kmeans <- ffi_prevalence_by_household_sf %>% 
+  group_nest(
+    ffi_is_district,
+    #ffi_is_community
+    #ffi_is_health_facility_name
+  ) %>% 
+  mutate(
+    ffi_coords = map(
+      data, 
+      ~ coordinates(as(., "Spatial"))
+    ),
+    neigh_nb = map2(
+      data, ffi_coords,
+      ~ knn2nb(
+          knearneigh(
+            .y,
+            k = 1,
+            longlat = TRUE
+          ),
+          row.names = .x$cod_id
+        )
+    ),
+    neigh_kd1 = pmap(
+      list(ffi_coords,
+           neigh_nb,
+           data),
+      ~ dnearneigh(
+        ..1,
+        d1 = 0, 
+        d2 = max(unlist(nbdists(..2, ..1))), 
+        row.names = ..3$cod_id
+      )
+    ),
+    self = map(
+      neigh_kd1,
+      ~ nb2listw(
+        .,
+        style = "W", 
+        zero.policy = TRUE
+      )
+    )
+  )
+
+```
+
+```{r}
+
+breaks <- c(-Inf, -2.58, -1.96, 
+            -1.65, 1.65, 1.96,
+            2.58, Inf)
+labels <- c("Cold spot: 99% confidence", 
+            "Cold spot: 95% confidence", 
+            "Cold spot: 90% confidence", 
+            "PSU Not significant",
+            "Hot spot: 90% confidence",
+            "Hot spot: 95% confidence",
+            "Hot spot: 99% confidence")
+
+ffi_w.getis <- ffi_prevalence_kmeans %>% 
+  mutate(
+    data_nosf = map(
+      data,
+      ~ .x %>% 
+        st_set_geometry(NULL) %>% 
+        pivot_longer(
+          cols = c(prevalence_pf_recent:prevalence_historical_exposure),
+          names_to = "type_plasmodium",
+          values_to = "prevalence"
+        ) %>% 
+        group_nest(type_plasmodium,
+                   .key = "data_nosf")
+    )
+  ) %>% 
+  unnest(data_nosf) %>% 
+  mutate(
+    LISA = map2(data_nosf,
+               self,
+               ~ localG(.x$prevalence, .y)),
+    LISA_clust = map(LISA,
+                     ~ cut(., include.lowest = TRUE,
+                           breaks = breaks, 
+                           labels = labels)),
+    LISA_label_orig = map(LISA,
+                          ~ attributes(.)$cluster),
+    LISA = map(LISA, as.numeric)
+  ) %>% 
+  select(
+    ffi_is_district,
+    #ffi_is_community,
+    #ffi_is_health_facility_name,
+    type_plasmodium:LISA_label_orig
+  ) %>% 
+  unnest(cols = c(data_nosf, LISA, 
+                  LISA_clust, LISA_label_orig))
+
+```
+
+```{r}
+ffi_w.getis <- ffi_w.getis %>% 
+  left_join(
+    ffi_household %>% 
+      select(
+        ffi_is_district = ffi_h_district,
+        ffi_is_cod_com = ffi_h_code_community,
+        ffi_is_cod_household = ffi_h_code_household,
+        ffi_gps_lat, 
+        ffi_gps_long
+      )
+  )
+
+w.getis_sf <- ffi_w.getis %>% 
+  st_as_sf(coords = c("ffi_gps_long", 
+                      "ffi_gps_lat"),
+           crs = 4326,
+           remove = FALSE)
+```
+
+
+### Ploting - Figure 6
+
+
+```{r}
+data("Peru", package = "innovar")
+
+ffi_shp <- Peru %>% 
+  filter(dep == "LORETO",
+         distr %in% c("INDIANA",
+                      "BELEN"))
+
+plot_getis_recent <- w.getis_sf %>% 
+  filter(type_plasmodium %in% c("prevalence_pf_recent", 
+                                "prevalence_pv_recent",
+                                "prevalence_recent_exposure")) %>% 
+  mutate(type_plasmodium = fct_relevel(type_plasmodium,
+                                       "prevalence_recent_exposure")) %>% 
+  ggplot() +
+  geom_sf(data = ffi_shp, fill = "#d9ead8") + 
+  geom_sf(aes(col = LISA_clust), 
+          size = 1.5,
+          alpha = 1) +
+  geom_sf(data = ffi_shp, fill = NA) + 
+  innovar::scale_color_innova("npr", na.value = "grey50") +
+  # colorspace::scale_color_discrete_diverging(palette = "Blue-Red",
+  #                                limits = labels) +
+  facet_wrap(vars(type_plasmodium),
+             labeller = labeller(type_plasmodium = c(prevalence_recent_exposure = "Prevalence Recent Exposure",
+                                   prevalence_pf_recent = "Prevalence Recent P. Falciparum",
+                                   prevalence_pv_recent = "Prevalence Recent P. Vivax"))) +
+  labs(color = "Local Indicator of Spatial Association",
+       title = "Spatial Analysis for Recent Exposure") +
+  #guides(colour = guide_legend(override.aes = list(size=10))) +
+  theme_classic(base_size = 12) +
+  theme(
+    legend.title = element_text(
+      face = "bold"
+    ),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5
+    ),
+    strip.text = element_text(
+      face = "bold"
+    )
+  )
+plot_getis_recent
+```
+
+```{r eval = FALSE}
+ggsave("02_output/plots/Fig 6. Spatial Analysis for Recent Exposure.png",
+       plot_getis_recent,
+       dpi = 400,
+       scale = 1.2,
+       device = grDevices::png)
+```
+
+### Ploting - Figure 7
+
+
+```{r}
+plot_getis_historical <- w.getis_sf %>% 
+  filter(type_plasmodium %in% c("prevalence_pf_historic", 
+                                "prevalence_pv_historic",
+                                "prevalence_historical_exposure")) %>% 
+  ggplot() +
+  geom_sf(data = ffi_shp, fill = "#d9ead8") + 
+  geom_sf(aes(col = LISA_clust), 
+          size = 1.5,
+          alpha = 1) +
+  geom_sf(data = ffi_shp, fill = NA) + 
+  innovar::scale_color_innova("npr", na.value = "grey50") +
+  # colorspace::scale_color_discrete_diverging(palette = "Blue-Red",
+  #                                limits = labels) +
+  facet_wrap(vars(type_plasmodium),
+             labeller = labeller(type_plasmodium = c(prevalence_historical_exposure = "Prevalence Historic Exposure",
+                                   prevalence_pf_historic = "Prevalence Historic P. Falciparum",
+                                   prevalence_pv_historic = "Prevalence Historic P. Vivax"))) +
+  labs(color = "Local Indicator of Spatial Association",
+       title = "Spatial Analysis for Historic Exposure") +
+  #guides(colour = guide_legend(override.aes = list(size=10))) +
+  theme_classic(base_size = 12) +
+  theme(
+    legend.title = element_text(
+      face = "bold"
+    ),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5
+    ),
+    strip.text = element_text(
+      face = "bold"
+    )
+  )
+plot_getis_historical
+```
+
+```{r eval = FALSE}
+ggsave("02_output/plots/Fig 7. Spatial Analysis for Historical Exposure.png",
+       plot_getis_historical,
+       dpi = 400,
+       scale = 1.2,
+       device = grDevices::png)
+```
+
+# Table descriptive
+
+```{r}
+library(gtsummary)
+
+fisher.test.simulate.p.values <- function(data, variable, by, ...) {
+  result <- list()
+  test_results <- stats::fisher.test(data[[variable]], data[[by]], simulate.p.value = TRUE)
+  result$p <- test_results$p.value
+  result$test <- test_results$method
+  result
+}
+```
+
+## Table for district
+
+### Individuals
+
+```{r}
+table_1_ind <- ffi_total %>%
+  select(
+    ffi_is_district,
+    gender,
+    ffi_is_age,
+    education_level,
+    economic_activities2,
+    ffi_is_trip_month,
+    ffi_is_place_shower,
+    ffi_is_place_sleep,
+    ffi_is_mosq_net,
+    ffi_is_mosq_net_freq,
+    ffi_is_fever_month,
+    ffi_is_malaria,
+    ffi_is_symp_month_head,
+    ffi_is_symp_month_musclejoint,
+    ffi_is_symp_month_general,
+    pf_exposure,
+    pv_exposure,
+    distance_to_rh_hf_sampl
+    # ffi_is_knowl_mal_inf,
+    # pf_recent:pv_historic
+  ) %>%
+  #drop_na(pf_recent:pv_historic) %>% 
+  tbl_summary(
+    by = "ffi_is_district",
+    missing = "no",
+    # missing_text = "Missing",
+    #type = all_dichotomous() ~ "categorical",
+    digits = everything() ~ c(0, 1)
+  ) %>%
+  add_n() %>%
+  add_overall(
+    last = TRUE,
+    digits = everything() ~ c(0, 1)
+  ) %>%
+  add_p(
+     test = list(all_categorical() ~ "fisher.test.simulate.p.values"),
+     pvalue_fun = scales::pvalue
+  ) %>% 
+  bold_p() %>%
+  modify_header(label = "**Variable**") %>%
+  bold_labels()
+  
+table_1_ind
+```
+
+```{r eval=FALSE}
+table_1_ind %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path = "./02_output/reports/Table 1. Characteristics of the study population.docx")
+```
+
+
+### Households
+
+
+```{r}
+table_1_household <- ffi_household %>%
+  select(
+    ffi_h_district,
+    ffi_h_mti,
+    ffi_h_type,
+    ffi_h_sprayed,
+    ffi_h_watersource
+  ) %>%
+  tbl_summary(
+    by = "ffi_h_district",
+    missing_text = "Missing",
+    type = all_dichotomous() ~ "categorical",
+    digits = everything() ~ c(0, 1)
+  ) %>%
+  add_n() %>%
+  add_overall(
+    last = TRUE,
+    digits = everything() ~ c(0, 1)
+  ) %>%
+  add_p(
+     test = list(all_categorical() ~ "fisher.test.simulate.p.values"),
+     pvalue_fun = scales::pvalue
+  ) %>% 
+  bold_p() %>%
+  modify_header(label = "**Variable**") %>%
+  bold_labels()
+  
+table_1_household
+```
+
+
+```{r eval=FALSE}
+table_1_household %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path = "./02_output/reports/Characteristics of households.docx")
+```
+
+## Table for Plasmodium and Exposure Time
+
+```{r}
+table2_ind <- ffi_total %>%
+  select(
+    ffi_is_district,
+    gender,
+    ffi_is_age,
+    economic_activities2,
+    ffi_is_trip_month,
+    ffi_is_place_shower,
+    ffi_is_mosq_net,
+    ffi_is_fever_month,
+    ffi_is_symp_month_head,
+    ffi_is_symp_month_musclejoint,
+    ffi_is_symp_month_general,
+    ffi_is_malaria,
+    distance_to_rh_hf_sampl,
+    pf_recent:pv_historic
+  ) %>%
+  drop_na(pf_recent:pv_historic) %>%
+  pivot_longer(
+    cols = pf_recent:pv_historic,
+    names_to = "exposure",
+    values_to = "result_exposure"
+  ) %>%
+  mutate(
+    exposure = case_when(
+      exposure == "pf_recent" ~ "P. Falciparum Recent",
+      exposure == "pf_historic" ~ "P. Falciparum Historical",
+      exposure == "pv_recent" ~ "P. Vivax Recent",
+      exposure == "pv_historic" ~ "P. Vivax Historical"
+      ),
+    exposure = factor(exposure,
+                      levels = c("P. Falciparum Recent",
+                                 "P. Falciparum Historical",
+                                 "P. Vivax Recent",
+                                 "P. Vivax Historical"))
+  ) %>%
+  tbl_strata(
+  strata = exposure,
+  .tbl_fun =
+    ~ .x %>%
+        tbl_summary(
+          by = result_exposure,
+          missing = "no",
+          #missing_text = "Missing",
+          #type = all_dichotomous() ~ "categorical",
+          digits = everything() ~ c(0, 1)
+        ) %>%
+        add_p(
+          test = list(all_categorical() ~ "fisher.test.simulate.p.values"),
+          pvalue_fun = scales::pvalue
+        ) %>%
+        bold_p() %>%
+        modify_header(label = "**Variable**") %>%
+        bold_labels() 
+  ) 
+
+table2_ind_overall <- ffi_total %>%
+  select(
+    ffi_is_district,
+    gender,
+    ffi_is_age,
+    economic_activities2,
+    ffi_is_trip_month,
+    ffi_is_place_shower,
+    ffi_is_mosq_net,
+    ffi_is_fever_month,
+    ffi_is_symp_month_head,
+    ffi_is_symp_month_musclejoint,
+    ffi_is_symp_month_general,
+    ffi_is_malaria,
+    distance_to_rh_hf_sampl
+  ) %>%
+  tbl_summary(
+    missing = "no",
+    # missing_text = "Missing",
+    # type = all_dichotomous() ~ "categorical",
+    digits = everything() ~ c(0, 1)
+  ) %>%
+  modify_header(
+    label = "**Variable**"
+  ) %>%
+  bold_labels() %>%
+  modify_spanning_header(stat_0 ~ "**Overall**")
+
+table2_ind <- tbl_merge(
+  tbls = list(table2_ind, table2_ind_overall),
+  tab_spanner = FALSE
+)
+
+table2_ind
+```
+
+```{r eval=FALSE}
+table2_ind %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path = "./02_output/reports/Characteristics of study population by P.vivax and falciparum exposure.docx")
+```
+
+
+# Supplementary Figure 1
+
+
+## Malaria Annual Parasite Index
+
+
+```{r}
+data_malaria <- data_malaria %>%
+  drop_na(District)
+
+pob_loreto <- poblacion %>%
+  filter(dep == "LORETO") %>%
+  select(District = distr, Total)
+```
+
+
+```{r}
+malaria_cases_pob <- data_malaria %>%
+  rowwise() %>%
+  mutate(
+    cases_malaria = sum(
+      c_across(c(
+        `Confirmed P. Falciparum`,
+        `Confirmed P. Vivax`
+      )),
+      na.rm = TRUE
+    )
+  ) %>%
+  group_by(District) %>%
+  summarise(cases_malaria = sum(cases_malaria))
+
+malaria_cases_pob <- malaria_cases_pob %>%
+  left_join(
+    pob_loreto
+  ) %>%
+  mutate(
+    api = cases_malaria * 1000 / Total
+  )
+
+data(Peru, package = "innovar")
+
+malaria_cases_pob_sf <- Peru %>%
+  filter(dep == "LORETO") %>%
+  select(District = distr, geometry) %>% 
+  right_join(
+    malaria_cases_pob
+  )
+```
+
+
+```{r}
+figure1 <- ggplot(malaria_cases_pob_sf) +
+  geom_sf(aes(fill = api, geometry = geometry)) +
+  geom_sf(data = malaria_cases_pob_sf %>% dplyr::filter(District == "BELEN"), colour = "#aa6439", fill = NA, size = 1.5, aes(fill = api, geometry = geometry)) +
+  geom_sf(data = malaria_cases_pob_sf %>% dplyr::filter(District == "INDIANA"), colour = "#256e5d", fill = NA, size = 1.5, aes(fill = api, geometry = geometry)) +
+  scale_fill_distiller(
+    name = "API",
+    na.value = "black",
+    # limits = c(0, 4000),
+    palette = "RdYlGn",
+    direction = -1,
+    breaks = scales::pretty_breaks(n = 5),
+    values = c(
+      0,
+      0.001,
+      0.002,
+      0.005,
+      0.008,
+      0.01,
+      0.02,
+      0.03,
+      0.05,
+      0.1,
+      0.6,
+      0.9,
+      1
+    )
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = NULL
+  ) +
+  theme_classic() +
+  geom_sf_label_repel(
+    data = malaria_cases_pob_sf %>% dplyr::filter(District == "BELEN"),
+    aes(label = District),
+    min.segment.length = 0,
+    force = 100,
+    nudge_x = -1,
+    seed = 10,
+    colour = "#aa6439"
+  ) +
+  geom_sf_label_repel(
+    data = malaria_cases_pob_sf %>% dplyr::filter(District == "INDIANA"),
+    aes(label = District),
+    min.segment.length = 0,
+    force = 100,
+    nudge_x = 1,
+    seed = 10,
+    colour = "#256e5d"
+  )
+
+figure1
+```
+
+```{r eval=FALSE}
+ggsave(
+  "./02_output/plots/figure1.png",
+  figure1,
+  device = grDevices::png,
+  dpi = 300
+)
+```
+

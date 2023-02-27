@@ -1,0 +1,765 @@
+---
+title: "Data preprocessing"
+date: "`r Sys.Date()`"
+output: 
+  rmdformats::downcute:
+    self_contained: true
+    highlight: kate
+    toc_depth: 3
+    default_style: dark
+    code_folding: hide
+    code_download: true
+    highlight_downlit: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+## Global options
+knitr::opts_chunk$set(
+  cache = TRUE,
+  warnings = FALSE,
+  messages = FALSE
+)
+
+library(tidyverse)
+library(sf)
+```
+
+
+# Import data
+
+```{r}
+serology <- read_csv("./01_data/raw/FFI.peru.serology.kmeans2.4000.csv") %>%
+  rename(ffi_is_code = Codigo) %>%
+  select(-1)
+
+ffi_individual <- read_csv("./01_data/raw/individuals_result_share_072022.csv")
+ffi_household <- read_csv("./01_data/raw/household_gps_share_072022.csv")
+ffi_2000_2019 <- read_csv("./01_data/raw/Data_FFI_2000_2019_20212405.csv")
+ffi_2020_2021 <- read_csv("./01_data/raw/Data_FFI_2020_2021_20210629.csv")
+poblacion <- readRDS("./01_data/raw/poblacion_inei_2017.rds")
+```
+
+# Format data
+
+## FFI 2000-2021
+
+```{r}
+data_malaria <- bind_rows(ffi_2000_2019, 
+                          ffi_2020_2021) 
+
+data_malaria_long <- data_malaria %>%
+  filter(District %in% c("BELEN", "INDIANA")) %>% 
+  select(
+    "District", 
+    "Health Facility Name", 
+    "Date by month",
+    "Year", "Month", 
+    "Confirmed P. Falciparum",
+    "Confirmed P. Vivax"
+  ) %>%
+  pivot_longer(
+    cols = 6:7, 
+    names_to = "malaria",
+    values_to = "cases"
+  )
+```
+
+## Individuals
+
+```{r}
+ffi_total <- ffi_individual %>%
+  full_join(
+    serology %>%
+      mutate(
+        ffi_is_code = paste0(0, ffi_is_code)
+      ),
+    by = "ffi_is_code"
+  )
+
+ffi_is_symp_top3 <- ffi_total %>%
+  pivot_longer(
+    cols = ffi_is_symp_month_head:ffi_is_symp_month_nosymptopm,
+    names_to = "ffi_is_symp",
+    values_to = "ffi_is_symp_ans"
+  ) %>% 
+  count(ffi_is_symp, ffi_is_symp_ans) %>% 
+  filter(ffi_is_symp_ans != 0,
+         ffi_is_symp != "ffi_is_symp_month_nosymptopm") %>%
+  slice_max(n, n = 3)
+
+ffi_total <- ffi_total %>%
+  mutate(
+    ffi_is_district = fct_recode(
+      ffi_is_district,
+      "Indiana" = "INDIANA",
+      "Belen" = "BELEN"
+    ),
+    age_cat = case_when(
+      ffi_is_age_fixed >= 70 ~ "[70+)",
+      ffi_is_age_fixed >= 60 ~ "[60-70)",
+      ffi_is_age_fixed >= 50 ~ "[50-60)",
+      ffi_is_age_fixed >= 40 ~ "[40-50)",
+      ffi_is_age_fixed >= 30 ~ "[30-40)",
+      ffi_is_age_fixed >= 20 ~ "[20-30)",
+      ffi_is_age_fixed >= 10 ~ "[10-20)",
+      ffi_is_age_fixed >= 0 ~ "[0-10)"
+    ),
+    age_cat = factor(age_cat),
+    age_code = case_when(
+      age_cat == "[70+)" ~ 8,
+      age_cat == "[60-70)" ~ 7,
+      age_cat == "[50-60)" ~ 6,
+      age_cat == "[40-50)" ~ 5,
+      age_cat == "[30-40)" ~ 4,
+      age_cat == "[20-30)" ~ 3,
+      age_cat == "[10-20)" ~ 2,
+      age_cat == "[0-10)" ~ 1,
+    ),
+    gender = factor(
+      ffi_is_sex,
+      labels = c("Male", "Female")
+    ),
+    ffi_is_malaria = factor(
+      ffi_is_malaria,
+      labels = c("No", "Yes", "Don't Know / No Answer")
+    ),
+    across(
+      c(pf_recent:pv_historic),
+      ~ factor(., labels = c("Negative", "Positive"))
+    ),
+    across(
+      c(
+        ffi_is_fever_month,
+        ffi_is_antimal_drug_use, 
+        ffi_is_mosq_net
+      ),
+      ~ factor(., labels = c("No", "Yes"))
+    ),
+    ffi_is_trip_month = factor(
+      ffi_is_trip_month,
+      labels = c("No", "Yes", "Don't Know/No Answer")
+    ),
+    ffi_is_mal_lifetime = factor(
+      ffi_is_mal_lifetime,
+      labels = c(
+        "1 to 3 times",
+        "3 to 7 times",
+        "More than 7 times"
+      )
+    ),
+    ffi_is_place_shower = factor(
+      ffi_is_place_shower,
+      labels = c(
+        "Bathroom inside the dwelling",
+        "Bathroom outside the dwelling",
+        "In the countryside/river",
+        "Other"
+      )
+    ),
+    education_level = case_when(
+      ffi_is_inst_level %in% 0 ~ "No schooling", 
+      ffi_is_inst_level %in% 1:2 ~ "Primary school",
+      ffi_is_inst_level %in% 3:4 ~ "Secondary school",
+      ffi_is_inst_level %in% 5:6 ~ "Higher education"
+    ),
+    education_level = fct_relevel(education_level, "No schooling",
+                                  "Primary school",
+                                  "Secondary school"),
+    economic_activities = factor(ffi_is_main_econ_act,
+                                 labels = c("None",
+                                            "Day labourer",
+                                            "Wood extractor",
+                                            "Fisherman",
+                                            "Livestock farmer",
+                                            "Farmer",
+                                            "Trader",
+                                            "Housewife",
+                                            "Student",
+                                            "Motorcycle taxi driver",
+                                            "Other")),
+    economic_activities2 = fct_collapse(
+      economic_activities,
+      "Forest Related" = c("Day labourer",
+                           "Wood extractor",
+                           "Fisherman",
+                           "Livestock farmer",
+                           "Farmer"),
+      "Housewife/student" = c("Housewife",
+                              "Student"),
+      "Others" = c("Motorcycle taxi driver",
+                   "Other")
+    ),
+    ffi_is_place_sleep = factor(ffi_is_place_sleep,
+                                labels = c("Inside the dwelling",
+                                           "Outside the dwelling",
+                                           "Don't Know / Don't Answer")),
+    ffi_is_mosq_net_freq = factor(ffi_is_mosq_net_freq,
+                                  levels = c(0:2, 99),
+                                  labels = c("Never",
+                                             "Every day",
+                                             "Sometimes",
+                                             "Don't Know / Don't Answer")),
+    across(
+      c(ffi_is_symp_month_head,
+        ffi_is_symp_month_musclejoint,
+        ffi_is_symp_month_general),
+      ~ factor(
+        .,
+        labels = c("No", "Yes")
+      )
+    ),
+    ffi_is_knowl_mal_inf = factor(ffi_is_knowl_mal_inf,
+                                  labels = c("I was diagnosed at the health facility",
+                                             "Because of symptoms",
+                                             "Other")),
+    pv_exposure = case_when(
+      pv_recent == "Negative" & pv_historic == "Negative" ~ "Negative",
+      is.na(pv_recent) & is.na(pv_historic) ~ NA_character_,
+      TRUE ~ "Positive"
+    ),
+    pf_exposure = case_when(
+      pf_recent == "Negative" & pf_historic == "Negative" ~ "Negative",
+      is.na(pf_recent) & is.na(pf_historic) ~ NA_character_,
+      TRUE ~ "Positive"
+    ),
+    recent_exposure = case_when(
+      pv_recent == "Negative" & pf_recent == "Negative" ~ "Negative",
+      is.na(pv_recent) & is.na(pf_recent) ~ NA_character_,
+      TRUE ~ "Positive"
+    ),
+    historical_exposure = case_when(
+      pv_historic == "Negative" & pf_historic == "Negative" ~ "Negative",
+      is.na(pv_historic) & is.na(pf_historic) ~ NA_character_,
+      TRUE ~ "Positive"
+    ),
+    any_pv_pf_exposure = case_when(
+      recent_exposure == "Negative" & historical_exposure == "Negative" ~ "Negative",
+      is.na(recent_exposure) & is.na(historical_exposure) ~ NA_character_,
+      TRUE ~ "Positive"
+    ),
+    only_pv_exposure = case_when(
+      pv_exposure == "Positive" & pf_exposure == "Negative" ~ "Positive", 
+      is.na(pv_exposure) & is.na(pf_exposure) ~ NA_character_,
+      TRUE ~ "Negative"
+    ),
+    only_pf_exposure = case_when(
+      pf_exposure == "Positive" & pv_exposure == "Negative" ~ "Positive", 
+      is.na(pf_exposure) & is.na(pv_exposure) ~ NA_character_,
+      TRUE ~ "Negative"
+    ),
+    pv_pf_exposure = case_when(
+      pv_exposure == "Positive" & pf_exposure == "Positive" ~ "Positive",
+      is.na(pv_exposure) & is.na(pf_exposure) ~ NA_character_,
+      TRUE ~ "Negative"
+    ),
+    freedom_malaria = case_when(
+      pv_exposure == "Negative" & pf_exposure == "Negative" ~ "Positive", 
+      is.na(pv_exposure) & is.na(pf_exposure) ~ NA_character_,
+      TRUE ~ "Negative"
+    ),
+    only_pv_recent = case_when(
+      pv_recent == "Positive" & pf_recent == "Negative" ~ "Positive", 
+      is.na(pv_recent) & is.na(pf_recent) ~ NA_character_,
+      TRUE ~ "Negative"
+    ),
+    only_pf_recent = case_when(
+      pf_recent == "Positive" & pv_recent == "Negative" ~ "Positive", 
+      is.na(pf_recent) & is.na(pv_recent) ~ NA_character_,
+      TRUE ~ "Negative"
+    ),
+    pv_pf_recent = case_when(
+      pv_recent == "Positive" & pf_recent == "Positive" ~ "Positive",
+      is.na(pv_recent) & is.na(pf_recent) ~ NA_character_,
+      TRUE ~ "Negative"
+    ),
+    freedom_malaria_recent = case_when(
+      pv_recent == "Negative" & pf_recent == "Negative" ~ "Positive", 
+      is.na(pv_recent) & is.na(pf_recent) ~ NA_character_,
+      TRUE ~ "Negative"
+    ),
+    only_pv_historic = case_when(
+      pv_historic == "Positive" & pf_historic == "Negative" ~ "Positive", 
+      is.na(pv_historic) & is.na(pf_historic) ~ NA_character_,
+      TRUE ~ "Negative"
+    ),
+    only_pf_historic = case_when(
+      pf_historic == "Positive" & pv_historic == "Negative" ~ "Positive", 
+      is.na(pf_historic) & is.na(pv_historic) ~ NA_character_,
+      TRUE ~ "Negative"
+    ),
+    pv_pf_historic = case_when(
+      pv_historic == "Positive" & pf_historic == "Positive" ~ "Positive",
+      is.na(pv_historic) & is.na(pf_historic) ~ NA_character_,
+      TRUE ~ "Negative"
+    ),
+    freedom_malaria_historic = case_when(
+      pv_historic == "Negative" & pf_historic == "Negative" ~ "Positive", 
+      is.na(pv_historic) & is.na(pf_historic) ~ NA_character_,
+      TRUE ~ "Negative"
+    ),
+    across(c(pv_exposure:freedom_malaria_historic), factor)
+  )
+
+
+labelled::var_label(ffi_total) <- list(
+  ffi_is_district = "Districs",
+  gender = "Gender",
+  ffi_is_age = "Age",
+  education_level = "Education Level",
+  economic_activities = "Economic Activities",
+  economic_activities2 = "Economic Activities",
+  ffi_is_trip_month = "Trip in the last month",
+  ffi_is_place_shower	= "Usual places to bathe",
+  ffi_is_place_sleep = "Place to sleep last night",
+  ffi_is_mosq_net = "Mosquito Net",
+  ffi_is_mosq_net_freq = "Frequency of Mosquito Net",
+  ffi_is_malaria = "Ever had malaria",
+  ffi_is_fever_month = "History of fever in the last month",
+  ffi_is_knowl_mal_inf = "Knowledge of whether it was malaria",
+  ffi_is_symp_month_head = "Symptoms or signs in the last month: Headache",
+  ffi_is_symp_month_musclejoint = "Symptoms or signs in the last month: Muscle or joint pain",
+  ffi_is_symp_month_general = "Symptoms or signs in the last month: General malaise",
+  pf_recent = "Recent P. Falciparum",
+  pf_historic = "Historical P. Falciparum",
+  pv_recent = "Recent P. Vivax",
+  pv_historic = "Historical P. Vivax",
+  pv_exposure = "P. Vivax Exposure",
+  pf_exposure = "P. Falciparum Exposure"
+)
+```
+
+## Household
+
+```{r}
+ffi_household <- ffi_household %>% 
+  mutate(
+    ffi_h_district = fct_recode(
+      ffi_h_district,
+      "Indiana" = "INDIANA",
+      "Belen" = "BELEN"
+    ),
+    ffi_h_type = factor(ffi_h_type,
+                        labels = c("HOUSE TYPE A: House without walls, with or without wooden floor",
+                                   "HOUSE TYPE B: House that has one, two or three walls without completely enclosing a room, with or without wooden floor",
+                                   "HOUSE TYPE C: House that has at least one room enclosed, with or without wooden floor",
+                                   "HOUSE TYPE D: Completely enclosed house, with or without wooden floor")),
+    ffi_h_sprayed = factor(ffi_h_sprayed,
+                           labels = c("No", "Yes",
+                                      "Don't know / No answer")),
+    ffi_h_watersource = factor(ffi_h_watersource,
+                               levels = c(1:6, 88, 99),
+                               labels = c("Drinking water inside the house",
+                                          "Drinking water outside the house",
+                                          "Well",
+                                          "Public well",
+                                          "River or stream",
+                                          "Rainwater",
+                                          "Other",
+                                          "Don't know/No answer"))
+  )
+
+labelled::var_label(ffi_household) <- list(
+  ffi_h_district = "District",
+  ffi_h_mti = "Insecticide-treated mosquito nets",
+  ffi_h_type = "Type of house",
+  ffi_h_sprayed = "Househould sprayed with insecticides in the last 12 months by the ministry of health",
+  ffi_h_watersource = "Main source of water for human consumption (food preparation)"
+)
+```
+
+
+# Distance Group about communities (Method Sampling)
+
+```{r}
+communities_sf <- ffi_household %>%
+  select(
+    ffi_h_district,
+    ffi_h_health_facility_name,
+    ffi_h_code_community,
+    ffi_h_community,
+    ffi_gps_long,
+    ffi_gps_lat
+  ) %>%
+  st_as_sf(
+    coords = c("ffi_gps_long", "ffi_gps_lat"),
+    crs = 4326
+  ) %>%
+  group_by(ffi_h_district, ffi_h_health_facility_name, ffi_h_code_community, ffi_h_community) %>%
+  summarise() %>%
+  st_centroid()
+
+names_hf <- ffi_household %>% 
+  count(ffi_h_health_facility_name) %>% 
+  pull(ffi_h_health_facility_name)
+
+hf_shp <- readRDS("01_data/raw/HF_shp.rds")
+
+hf_shp <- hf_shp %>% 
+  filter(`Health Facility Name` %in% names_hf) %>% 
+  select(District, 
+         ffi_h_health_facility_name = `Health Facility Name`)
+```
+
+## Distance communities and their HF's
+
+```{r}
+communities_distances_hf_sampling <- communities_sf %>% 
+  ungroup() %>% 
+  st_transform(crs = 32718) %>% 
+  st_distance(
+    hf_shp %>% 
+      st_transform(crs = 32718)
+  ) %>% 
+  as_tibble() 
+
+names(communities_distances_hf_sampling) <- hf_shp$ffi_h_health_facility_name
+
+communities_distances_hf_sampling <- communities_distances_hf_sampling %>% 
+  mutate(
+    ffi_is_community = communities_sf$ffi_h_community,
+    ffi_is_district = communities_sf$ffi_h_district,
+    .before = 1
+  ) %>% 
+  pivot_longer(
+    cols = -c(ffi_is_community, ffi_is_district),
+    names_to = "ffi_is_health_facility_name",
+    values_to = "distance_to_hf_sampl_num"
+  ) %>% 
+  mutate(distance_to_hf_sampl_num = as.numeric(distance_to_hf_sampl_num))
+
+communities_distances_hf_sampling_cat <- communities_sf %>% 
+  as_tibble() %>% 
+  ungroup() %>% 
+  select(
+    ffi_is_district = ffi_h_district,
+    ffi_is_health_facility_name = ffi_h_health_facility_name, 
+    ffi_is_community = ffi_h_community
+  ) %>% 
+  left_join(
+    communities_distances_hf_sampling
+  )
+
+communities_distances_hf_sampling_cat <- communities_distances_hf_sampling_cat %>% 
+  group_by(ffi_is_health_facility_name) %>% 
+  mutate(
+    distance_to_hf_sampl = as.numeric(cut_number(distance_to_hf_sampl_num, 4)),
+    distance_to_hf_sampl = factor(distance_to_hf_sampl, 
+                                  labels = c("Proximate", "Moderate",
+                                             "Distant", "Extra Distant"))
+  ) %>% 
+  ungroup()
+```
+
+Update info:
+
+```{r}
+ffi_total <- ffi_total %>% 
+  left_join(
+    communities_distances_hf_sampling_cat
+  ) 
+```
+
+
+
+## Distance communities and Regional Hospital
+
+```{r}
+iquitos_centro <- tibble(
+  "ffi_h_health_facility_name" = "Hospital Regional de Loreto",
+  Longitude = -73.25385902080906,
+  Latitude = -3.7264060164148716,
+) %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326) %>%
+  st_transform(crs = 32718)
+
+communities_distances_rh_sampling <- communities_sf %>%
+  st_transform(crs = 32718) %>%
+  st_distance(iquitos_centro)
+
+communities_distances_rh_sampling <- enframe(communities_distances_rh_sampling) %>%
+  mutate(
+    ffi_is_cod_com = communities_sf$ffi_h_code_community,
+    ffi_is_community = communities_sf$ffi_h_community,
+    distance_to_rh_sampl_num = as.numeric(value),
+    ffi_is_district = communities_sf$ffi_h_district
+  ) %>%
+  select(-c(name, value)) %>% 
+  group_by(ffi_is_district) %>% 
+  mutate(
+    distance_to_rh_sampl = as.numeric(cut_number(distance_to_rh_sampl_num, 4)),
+    distance_to_rh_sampl = factor(distance_to_rh_sampl, 
+                                  labels = c("Proximate", "Moderate",
+                                             "Distant", "Extra Distant"))
+  ) %>% 
+  ungroup()
+```
+
+Las Comunidades mas cercanas y mas lejanas por distrito:
+
+```{r eval=FALSE}
+communities_distances_rh_sampling %>%
+  group_by(ffi_is_district) %>%
+  slice_min(distance_to_rh_sampl, n = 1) %>%
+  bind_rows(
+    communities_distances_rh_sampling %>%
+      mutate(
+        ffi_is_district = communities_sf$ffi_h_district
+      ) %>%
+      group_by(ffi_is_district) %>%
+      slice_max(distance_to_rh_sampl, n = 1)
+  ) %>%
+  arrange(ffi_is_district, distance_to_rh_sampl)
+```
+
+Update info:
+
+```{r}
+ffi_total <- ffi_total %>% 
+  left_join(
+    communities_distances_rh_sampling 
+  ) 
+```
+
+## Distance communities to Regional Hospital and Health Facilities (min distance)
+
+```{r}
+ffi_total <- ffi_total %>% 
+  rowwise() %>% 
+  mutate(
+    distance_to_rh_hf_sampl_num = min(distance_to_rh_sampl_num, distance_to_hf_sampl_num)
+  ) %>% 
+  group_by(ffi_is_district) %>% 
+  mutate(
+    distance_to_rh_hf_sampl = as.numeric(cut_number(distance_to_rh_hf_sampl_num, 4)),
+    distance_to_rh_hf_sampl = factor(distance_to_rh_hf_sampl, 
+                                     labels = c("Proximate", "Moderate",
+                                                "Distant", "Extra Distant"))
+  ) %>% 
+  ungroup()
+
+
+labelled::var_label(ffi_total) <- list(
+  distance_to_rh_hf_sampl = "Distance Category to Regional Hospital and Health Facilities"
+)
+```
+
+# Distance Group about communities (Method Census)
+
+```{r}
+# comunidades_info_total <- readRDS("01_data/raw/Información poblacional comunidades.RData") %>% 
+#   st_as_sf()
+# 
+# st_geometry(comunidades_info_total[comunidades_info_total$MNOMCP == "CABO PANTOJA", ]) <-
+#   st_sfc(st_point(c(-73.248636296, -3.777654358)))
+# 
+# 
+# comunidades_info_total <- comunidades_info_total %>% 
+#   mutate(
+#     geometry2 = case_when(
+#       MNOMCP == "8 DE DICIEMBRE" ~ st_cast(
+#         st_sfc(st_point(c(-73.248636296, 
+#                           -3.777654358))), 
+#         "GEOMETRY"
+#         ),
+#       MNOMCP == "CABO LOPEZ" ~ st_cast(
+#         st_sfc(st_point(c(-73.253457539, 
+#                           -3.781405681))), 
+#         "GEOMETRY"
+#         ),
+#       MNOMCP == "TIMICURO GRANDE" ~ st_cast(
+#         st_sfc(st_point(c(-73.023866667, 
+#                           -3.558536667))), 
+#         "GEOMETRY"
+#         ),
+#       TRUE ~ st_cast(geometry, "GEOMETRY")
+#       )
+#   )
+#   
+# comunidades_info_total <- comunidades_info_total %>% 
+#   mutate(
+#     geometry = ifelse(
+#       MNOMCP == "8 DE DICIEMBRE", st_sfc(st_point(c(-73.248636296, 
+#                                                     -3.777654358))),
+#       ifelse(MNOMCP == "CABO LOPEZ", st_sfc(st_point(c(-73.253457539, 
+#                                                        -3.781405681))),
+#              ifelse(MNOMCP == "TIMICURO GRANDE",
+#                     st_sfc(st_point(c(-73.023866667, 
+#                           -3.558536667))), geometry)
+#   )
+# 
+# 
+# comunidades_info_adic <- comunidades_info_total %>% 
+#   filter(st_is_empty(geometry)) %>% 
+#   distinct(MNOMCP, .keep_all = TRUE) %>% 
+#   filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>% 
+#   select(-geometry) %>% 
+#   left_join(
+#     communities_sf %>% 
+#       select(
+#         District = ffi_h_district,
+#         `Health Facility Name` = ffi_h_health_facility_name,
+#         MNOMCP = ffi_h_community,
+#         geometry
+#       ) %>% 
+#       as_tibble()
+#   )
+# 
+# comunidades_info_total <- comunidades_info_total %>% 
+#   filter(!st_is_empty(geometry)) %>% 
+#   distinct(MNOMCP, .keep_all = TRUE) %>% 
+#   bind_rows(
+#     comunidades_info_adic
+#   )
+```
+
+## Distance communities and their HF's
+
+```{r}
+# communities_distances_hf <- comunidades_info_total %>% 
+#   filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>% 
+#   st_as_sf(crs = 4326) %>% 
+#   st_transform(crs = 32718) %>% 
+#   st_distance(
+#     hf_shp %>% 
+#       st_transform(crs = 32718)
+#   ) %>% 
+#   as_tibble() 
+# 
+# names_comunities_9_hf <- comunidades_info_total %>% 
+#   filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>% 
+#   pull(MNOMCP)
+# 
+# names_districts_9_hf <- comunidades_info_total %>% 
+#   filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>% 
+#   pull(District)
+# 
+# names(communities_distances_hf) <- hf_shp$ffi_h_health_facility_name
+# 
+# communities_distances_hf <- communities_distances_hf %>% 
+#   mutate(
+#     ffi_is_community = names_comunities_9_hf,
+#     ffi_is_district = names_districts_9_hf,
+#     .before = 1
+#   ) %>% 
+#   pivot_longer(
+#     cols = -c(ffi_is_community, ffi_is_district),
+#     names_to = "ffi_is_health_facility_name",
+#     values_to = "distance_to_hf_census"
+#   ) %>% 
+#   mutate(distance_to_hf_census = as.numeric(distance_to_hf_census))
+# 
+# communities_distances_hf_total <- comunidades_info_total %>% 
+#   filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>% 
+#   select(
+#     ffi_is_district = District,
+#     ffi_is_health_facility_name = `Health Facility Name`, 
+#     ffi_is_community = MNOMCP
+#   ) %>% 
+#   left_join(
+#     communities_distances_hf
+#   )
+#   
+#   
+# communities_distances_hf_cat <- communities_distances_hf_total %>%
+#   filter(ffi_is_health_facility_name != "SOLEDAD DE VILLA BELEN") %>%
+#   group_by(ffi_is_health_facility_name) %>%
+#   mutate(
+#     distance_to_hf_census = as.numeric(cut_number(distance_to_hf_census, 4)),
+#     distance_to_hf_census = factor(
+#       distance_to_hf_census,
+#       labels = c(
+#         "Proximate",
+#         "Moderate",
+#         "Distant",
+#         "Extra Distant"
+#       )
+#     )
+#   ) %>%
+#   ungroup() %>%
+#   bind_rows(
+#     communities_distances_hf_total %>% 
+#       filter(ffi_is_health_facility_name == "SOLEDAD DE VILLA BELEN") %>% 
+#       mutate(
+#         distance_to_hf_census = "Moderate"
+#       )
+#   )
+```
+
+Update info:
+
+```{r}
+# ffi_total <- ffi_total %>% 
+#   left_join(
+#     communities_distances_hf_cat
+#   )
+```
+
+
+## Distance communities and Regional Hospital
+
+```{r}
+communities_distances_rh <- comunidades_info_total %>% 
+  st_as_sf(crs = 4326) %>% 
+  st_transform(crs = 32718) %>% 
+  st_distance(
+    iquitos_centro
+  ) %>% 
+  enframe() %>% 
+  mutate(
+    ffi_is_community = comunidades_info_total$MNOMCP,
+    distance_to_rh_census = as.numeric(value),
+    ffi_is_district = comunidades_info_total$District
+  ) %>%
+  select(-c(name, value))
+```
+
+```{r}
+communities_distances_rh_cat <- communities_distances_rh %>%
+  drop_na(distance_to_rh_census) %>%
+  arrange(ffi_is_district, distance_to_rh_census) %>%
+  group_by(ffi_is_district) %>%
+  mutate(
+    distance_to_rh_census = as.numeric(cut_number(distance_to_rh_census, 4)),
+    distance_to_rh_census = factor(
+      distance_to_rh_census,
+      labels = c(
+        "Proximate",
+        "Moderate",
+        "Distant",
+        "Extra Distant"
+      )
+    )
+  ) %>%
+  ungroup() %>%
+  distinct(ffi_is_community, ffi_is_district, .keep_all = TRUE)
+```
+
+Update info:
+
+```{r}
+ffi_total <- ffi_total %>% 
+  left_join(
+    communities_distances_rh_cat
+  )
+```
+
+
+# Export data
+
+```{r eval = FALSE}
+saveRDS(ffi_total, 
+        file = "01_data/processed/ffi_total.rds")
+saveRDS(ffi_household,
+        file = "01_data/processed/ffi_household.rds")
+saveRDS(data_malaria, 
+        file = "01_data/processed/data_malaria.rds")
+saveRDS(data_malaria_long,
+        file = "01_data/processed/data_malaria_long.rds")
+saveRDS(communities_sf ,
+        file = "01_data/processed/communities_sf.rds")
+saveRDS(hf_shp,
+        file = "01_data/processed/hf_shp.rds")
+```
+
