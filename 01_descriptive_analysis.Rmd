@@ -554,10 +554,15 @@ w.getis_sf <- ffi_w.getis %>%
 ```{r}
 data("Peru", package = "innovar")
 
-ffi_shp <- Peru %>% 
+crop_coordinates <- Peru %>% 
   filter(dep == "LORETO",
          distr %in% c("INDIANA",
-                      "BELEN"))
+                      "BELEN")) %>% 
+  st_bbox()
+
+ffi_shp <- Peru %>% 
+  st_crop(crop_coordinates)
+
 
 plot_getis_recent <- w.getis_sf %>% 
   filter(type_plasmodium %in% c("prevalence_pf_recent", 
@@ -571,7 +576,12 @@ plot_getis_recent <- w.getis_sf %>%
           size = 1.5,
           alpha = 1) +
   geom_sf(data = ffi_shp, fill = NA) + 
-  innovar::scale_color_innova("npr", na.value = "grey50") +
+  scale_color_manual(
+    values = c("#03595c", "#5dafa6", "#87cdb5",
+               "grey50",
+               "#efc38f", "#e88245", "#e2634b")
+  ) +
+  # innovar::scale_color_innova("npr", na.value = "grey50") +
   # colorspace::scale_color_discrete_diverging(palette = "Blue-Red",
   #                                limits = labels) +
   facet_wrap(vars(type_plasmodium),
@@ -619,7 +629,12 @@ plot_getis_historical <- w.getis_sf %>%
           size = 1.5,
           alpha = 1) +
   geom_sf(data = ffi_shp, fill = NA) + 
-  innovar::scale_color_innova("npr", na.value = "grey50") +
+  scale_color_manual(
+    values = c("#03595c", "#5dafa6", "#87cdb5",
+               "grey50",
+               "#efc38f", "#e88245", "#e2634b")
+  ) +
+  # innovar::scale_color_innova("npr", na.value = "grey50") +
   # colorspace::scale_color_discrete_diverging(palette = "Blue-Red",
   #                                limits = labels) +
   facet_wrap(vars(type_plasmodium),
