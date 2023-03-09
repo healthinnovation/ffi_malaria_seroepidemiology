@@ -71,10 +71,10 @@ fig2_malaria_api_belen_indiana_A <- data_malaria_long %>%
     y = "API"
   ) +
   innovar::scale_color_innova("npr") +
-  geom_hline(yintercept=40, linetype="dashed", 
-                color = "black", linewidth = 2) +
-  annotate("text", label = "Very low \ntransmission",
-           y = 35, x = lubridate::ymd("2019-01-01")) +
+  # geom_hline(yintercept=40, linetype="dashed", 
+  #               color = "black", linewidth = 2) +
+  # annotate("text", label = "Very low \ntransmission",
+  #          y = 35, x = lubridate::ymd("2019-01-01")) +
   theme_minimal()
 
 fig2_malaria_api_belen_indiana_A
