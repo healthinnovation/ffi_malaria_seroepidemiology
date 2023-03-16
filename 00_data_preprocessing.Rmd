@@ -548,152 +548,160 @@ labelled::var_label(ffi_total) <- list(
 # Distance Group about communities (Method Census)
 
 ```{r}
-# comunidades_info_total <- readRDS("01_data/raw/Información poblacional comunidades.RData") %>% 
-#   st_as_sf()
-# 
-# st_geometry(comunidades_info_total[comunidades_info_total$MNOMCP == "CABO PANTOJA", ]) <-
-#   st_sfc(st_point(c(-73.248636296, -3.777654358)))
-# 
-# 
-# comunidades_info_total <- comunidades_info_total %>% 
+comunidades_info_total <- readRDS("01_data/raw/Información poblacional comunidades.RData") %>%
+  st_as_sf()
+
+#https://stackoverflow.com/a/54133105
+
+st_geometry(comunidades_info_total)[
+  comunidades_info_total$MNOMCP == "8 DE DICIEMBRE"
+] <- st_point(c(-73.248636296,
+                -3.777654358))
+st_geometry(comunidades_info_total)[
+  comunidades_info_total$MNOMCP == "CABO LOPEZ"
+] <- st_point(c(-73.253457539,
+                -3.781405681))
+st_geometry(comunidades_info_total)[
+  comunidades_info_total$MNOMCP == "TIMICURO GRANDE"
+] <- st_point(c(-73.023866667,
+                -3.558536667))
+
+# comunidades_info_total <- comunidades_info_total %>%
 #   mutate(
 #     geometry2 = case_when(
 #       MNOMCP == "8 DE DICIEMBRE" ~ st_cast(
-#         st_sfc(st_point(c(-73.248636296, 
-#                           -3.777654358))), 
+#         st_sfc(st_point(c(-73.248636296,
+#                           -3.777654358))),
 #         "GEOMETRY"
 #         ),
 #       MNOMCP == "CABO LOPEZ" ~ st_cast(
-#         st_sfc(st_point(c(-73.253457539, 
-#                           -3.781405681))), 
+#         st_sfc(st_point(c(-73.253457539,
+#                           -3.781405681))),
 #         "GEOMETRY"
 #         ),
 #       MNOMCP == "TIMICURO GRANDE" ~ st_cast(
-#         st_sfc(st_point(c(-73.023866667, 
-#                           -3.558536667))), 
+#         st_sfc(st_point(c(-73.023866667,
+#                           -3.558536667))),
 #         "GEOMETRY"
 #         ),
 #       TRUE ~ st_cast(geometry, "GEOMETRY")
 #       )
 #   )
-#   
-# comunidades_info_total <- comunidades_info_total %>% 
-#   mutate(
-#     geometry = ifelse(
-#       MNOMCP == "8 DE DICIEMBRE", st_sfc(st_point(c(-73.248636296, 
-#                                                     -3.777654358))),
-#       ifelse(MNOMCP == "CABO LOPEZ", st_sfc(st_point(c(-73.253457539, 
-#                                                        -3.781405681))),
-#              ifelse(MNOMCP == "TIMICURO GRANDE",
-#                     st_sfc(st_point(c(-73.023866667, 
-#                           -3.558536667))), geometry)
-#   )
-# 
-# 
-# comunidades_info_adic <- comunidades_info_total %>% 
-#   filter(st_is_empty(geometry)) %>% 
-#   distinct(MNOMCP, .keep_all = TRUE) %>% 
-#   filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>% 
-#   select(-geometry) %>% 
-#   left_join(
-#     communities_sf %>% 
-#       select(
-#         District = ffi_h_district,
-#         `Health Facility Name` = ffi_h_health_facility_name,
-#         MNOMCP = ffi_h_community,
-#         geometry
-#       ) %>% 
-#       as_tibble()
-#   )
-# 
-# comunidades_info_total <- comunidades_info_total %>% 
-#   filter(!st_is_empty(geometry)) %>% 
-#   distinct(MNOMCP, .keep_all = TRUE) %>% 
-#   bind_rows(
-#     comunidades_info_adic
-#   )
+
+
+comunidades_info_adic <- comunidades_info_total %>%
+  filter(st_is_empty(geometry)) %>%
+  st_drop_geometry() %>%
+  distinct(MNOMCP, .keep_all = TRUE) %>%
+  filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>%
+  mutate(District = str_to_title(District)) %>% 
+  left_join(
+    communities_sf %>%
+      select(
+        District = ffi_h_district,
+        `Health Facility Name` = ffi_h_health_facility_name,
+        MNOMCP = ffi_h_community,
+        geometry
+      ),
+    by = join_by(District, `Health Facility Name`, MNOMCP)
+  )
+
+
+comunidades_info_total <- comunidades_info_total %>%
+  filter(!st_is_empty(geometry)) %>%
+  distinct(MNOMCP, .keep_all = TRUE) %>%
+  mutate()
+  bind_rows(
+    comunidades_info_adic
+  )
 ```
 
 ## Distance communities and their HF's
 
 ```{r}
-# communities_distances_hf <- comunidades_info_total %>% 
-#   filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>% 
-#   st_as_sf(crs = 4326) %>% 
-#   st_transform(crs = 32718) %>% 
-#   st_distance(
-#     hf_shp %>% 
-#       st_transform(crs = 32718)
-#   ) %>% 
-#   as_tibble() 
-# 
-# names_comunities_9_hf <- comunidades_info_total %>% 
-#   filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>% 
-#   pull(MNOMCP)
-# 
-# names_districts_9_hf <- comunidades_info_total %>% 
-#   filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>% 
-#   pull(District)
-# 
-# names(communities_distances_hf) <- hf_shp$ffi_h_health_facility_name
-# 
-# communities_distances_hf <- communities_distances_hf %>% 
-#   mutate(
-#     ffi_is_community = names_comunities_9_hf,
-#     ffi_is_district = names_districts_9_hf,
-#     .before = 1
-#   ) %>% 
-#   pivot_longer(
-#     cols = -c(ffi_is_community, ffi_is_district),
-#     names_to = "ffi_is_health_facility_name",
-#     values_to = "distance_to_hf_census"
-#   ) %>% 
-#   mutate(distance_to_hf_census = as.numeric(distance_to_hf_census))
-# 
-# communities_distances_hf_total <- comunidades_info_total %>% 
-#   filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>% 
-#   select(
-#     ffi_is_district = District,
-#     ffi_is_health_facility_name = `Health Facility Name`, 
-#     ffi_is_community = MNOMCP
-#   ) %>% 
-#   left_join(
-#     communities_distances_hf
-#   )
-#   
-#   
-# communities_distances_hf_cat <- communities_distances_hf_total %>%
-#   filter(ffi_is_health_facility_name != "SOLEDAD DE VILLA BELEN") %>%
-#   group_by(ffi_is_health_facility_name) %>%
-#   mutate(
-#     distance_to_hf_census = as.numeric(cut_number(distance_to_hf_census, 4)),
-#     distance_to_hf_census = factor(
-#       distance_to_hf_census,
-#       labels = c(
-#         "Proximate",
-#         "Moderate",
-#         "Distant",
-#         "Extra Distant"
-#       )
-#     )
-#   ) %>%
-#   ungroup() %>%
-#   bind_rows(
-#     communities_distances_hf_total %>% 
-#       filter(ffi_is_health_facility_name == "SOLEDAD DE VILLA BELEN") %>% 
-#       mutate(
-#         distance_to_hf_census = "Moderate"
-#       )
-#   )
+communities_distances_hf <- comunidades_info_total %>%
+  filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>%
+  st_as_sf(crs = 4326) %>%
+  st_transform(crs = 32718) %>%
+  st_distance(
+    hf_shp %>%
+      st_transform(crs = 32718)
+  ) %>%
+  as_tibble()
+
+names_comunities_9_hf <- comunidades_info_total %>%
+  filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>%
+  pull(MNOMCP)
+
+names_districts_9_hf <- comunidades_info_total %>%
+  filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>%
+  pull(District)
+
+names(communities_distances_hf) <- hf_shp$ffi_h_health_facility_name
+
+communities_distances_hf <- communities_distances_hf %>%
+  mutate(
+    ffi_is_community = names_comunities_9_hf,
+    ffi_is_district = names_districts_9_hf,
+    .before = 1
+  ) %>%
+  pivot_longer(
+    cols = -c(ffi_is_community, ffi_is_district),
+    names_to = "ffi_is_health_facility_name",
+    values_to = "distance_to_hf_census_num"
+  ) %>%
+  mutate(distance_to_hf_census_num = as.numeric(distance_to_hf_census_num))
+
+communities_distances_hf_total <- comunidades_info_total %>%
+  filter(`Health Facility Name` %in% hf_shp$ffi_h_health_facility_name) %>%
+  select(
+    ffi_is_district = District,
+    ffi_is_health_facility_name = `Health Facility Name`,
+    ffi_is_community = MNOMCP
+  ) %>%
+  left_join(
+    communities_distances_hf
+  )
+
+
+communities_distances_hf_cat <- communities_distances_hf_total %>%
+  filter(ffi_is_health_facility_name != "SOLEDAD DE VILLA BELEN") %>%
+  group_by(ffi_is_health_facility_name) %>%
+  mutate(
+    distance_to_hf_census = as.numeric(cut_number(distance_to_hf_census_num, 4)),
+    distance_to_hf_census = factor(
+      distance_to_hf_census,
+      labels = c(
+        "Proximate",
+        "Moderate",
+        "Distant",
+        "Extra Distant"
+      )
+    )
+  ) %>%
+  ungroup() %>%
+  bind_rows(
+    communities_distances_hf_total %>%
+      filter(ffi_is_health_facility_name == "SOLEDAD DE VILLA BELEN") %>%
+      mutate(
+        distance_to_hf_census = factor("Moderate", 
+                                       levels = c("Proximate",
+                                                  "Moderate",
+                                                  "Distant",
+                                                  "Extra Distant"))
+      )
+  ) %>% 
+  mutate(ffi_is_district = str_to_title(ffi_is_district)) %>% 
+  st_drop_geometry()
 ```
 
 Update info:
 
 ```{r}
-# ffi_total <- ffi_total %>% 
-#   left_join(
-#     communities_distances_hf_cat
-#   )
+ffi_total <- ffi_total %>%
+  left_join(
+    communities_distances_hf_cat
+  )
 ```
 
 
@@ -709,7 +717,7 @@ communities_distances_rh <- comunidades_info_total %>%
   enframe() %>% 
   mutate(
     ffi_is_community = comunidades_info_total$MNOMCP,
-    distance_to_rh_census = as.numeric(value),
+    distance_to_rh_census_num = as.numeric(value),
     ffi_is_district = comunidades_info_total$District
   ) %>%
   select(-c(name, value))
@@ -717,11 +725,11 @@ communities_distances_rh <- comunidades_info_total %>%
 
 ```{r}
 communities_distances_rh_cat <- communities_distances_rh %>%
-  drop_na(distance_to_rh_census) %>%
-  arrange(ffi_is_district, distance_to_rh_census) %>%
+  drop_na(distance_to_rh_census_num) %>%
+  arrange(ffi_is_district, distance_to_rh_census_num) %>%
   group_by(ffi_is_district) %>%
   mutate(
-    distance_to_rh_census = as.numeric(cut_number(distance_to_rh_census, 4)),
+    distance_to_rh_census = as.numeric(cut_number(distance_to_rh_census_num, 4)),
     distance_to_rh_census = factor(
       distance_to_rh_census,
       labels = c(
@@ -733,7 +741,8 @@ communities_distances_rh_cat <- communities_distances_rh %>%
     )
   ) %>%
   ungroup() %>%
-  distinct(ffi_is_community, ffi_is_district, .keep_all = TRUE)
+  distinct(ffi_is_community, ffi_is_district, .keep_all = TRUE) %>% 
+  mutate(ffi_is_district = str_to_title(ffi_is_district))
 ```
 
 Update info:
