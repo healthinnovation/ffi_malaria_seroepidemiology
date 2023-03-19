@@ -286,6 +286,26 @@ ggsave(
 )
 ```
 
+Alternative color:
+
+```{r}
+malaria_seropositivity_type_exposure_belen2 <- 
+  malaria_seropositivity_type_exposure_belen +
+  innovar::scale_fill_innova("dark_green",
+                             reverse = TRUE)
+malaria_seropositivity_type_exposure_belen2
+```
+
+```{r eval=FALSE}
+ggsave(
+  "./02_output/plots/Fig 4. Malaria Seropositivity by type of exposure and plasmodium in Belen2.png",
+  malaria_seropositivity_type_exposure_belen2,
+  dpi = 300,
+  bg = "white",
+  width = 10,
+  height = 9
+)
+```
 
 ## Figure 5
 
@@ -357,6 +377,27 @@ malaria_seropositivity_type_exposure_indiana
 ggsave(
   "./02_output/plots/Fig 4. Malaria Seropositivity by type of exposure and plasmodium in Indiana.png",
   malaria_seropositivity_type_exposure_indiana,
+  dpi = 300,
+  bg = "white",
+  width = 10,
+  height = 9
+)
+```
+
+Alternative color:
+
+```{r}
+malaria_seropositivity_type_exposure_indiana2 <- 
+  malaria_seropositivity_type_exposure_indiana +
+  innovar::scale_fill_innova("dark_green",
+                             reverse = TRUE)
+malaria_seropositivity_type_exposure_indiana2
+```
+
+```{r eval=FALSE}
+ggsave(
+  "./02_output/plots/Fig 4. Malaria Seropositivity by type of exposure and plasmodium in Indiana2.png",
+  malaria_seropositivity_type_exposure_indiana2,
   dpi = 300,
   bg = "white",
   width = 10,
