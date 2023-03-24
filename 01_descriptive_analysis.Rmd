@@ -264,6 +264,9 @@ malaria_seropositivity_type_exposure_belen <- ffi_total %>%
     ),
     axis.title = element_text(
       face = "bold",
+      size = 12
+    ),
+    axis.text = element_text(
       size = 11
     ),
     legend.title = element_text(
@@ -362,6 +365,9 @@ malaria_seropositivity_type_exposure_indiana <- ffi_total %>%
     ),
     axis.title = element_text(
       face = "bold",
+      size = 12
+    ),
+    axis.text = element_text(
       size = 11
     ),
     legend.title = element_text(
@@ -1039,4 +1045,39 @@ ggsave(
   dpi = 300
 )
 ```
+
+# Aditional descriptives
+
+```{r}
+interpretCI::propCI_sub(ffi_total, "any_pv_pf_exposure") %>% 
+  magrittr::extract2("result") %>% 
+  select(p, lower, upper) %>% 
+  mutate(
+    across(everything(), ~ formattable::percent(., digits = 1)),
+  )
+```
+
+```{r}
+interpretCI::propCI_sub(ffi_total, "pf_exposure") %>% 
+  magrittr::extract2("result") %>% 
+  select(p, lower, upper) %>% 
+  mutate(
+    across(everything(), ~ formattable::percent(., digits = 1)),
+  )
+
+interpretCI::propCI_sub(ffi_total, "pv_exposure") %>% 
+  magrittr::extract2("result") %>% 
+  select(p, lower, upper) %>% 
+  mutate(
+    across(everything(), ~ formattable::percent(., digits = 1)),
+  )
+```
+
+# Segmented regression
+
+```{r}
+lm()
+```
+
+
 
