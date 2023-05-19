@@ -43,3 +43,4 @@ vignettes/*.pdf
 *_cache
 *_files
 01_data/*
+rosm.cache

@@ -210,6 +210,67 @@ ggsave(
 )
 ```
 
+## Segmented regression
+
+```{r}
+summarise_exposure_sero <- ffi_total %>%
+  drop_na(pf_exposure, pv_exposure, age_cat) %>%
+  pivot_longer(
+    cols = pv_exposure:pf_exposure,
+    names_to = "exposure",
+    values_to = "result_exposure"
+  ) %>%
+  mutate(
+    exposure = case_when(
+      exposure == "pv_exposure" ~ "P. Vivax Exposure",
+      exposure == "pf_exposure" ~ "P. Falciparum Exposure"
+    ),
+    result_exposure = case_when(
+      result_exposure == "Positive" ~ 1,
+      TRUE ~ 0
+    ),
+    across(
+      c(ffi_is_community:ffi_is_health_facility_name),
+      str_to_title
+    )
+  ) %>%
+  group_by(age_cat, exposure) %>%
+  summarise(result_exposure = mean(result_exposure)) %>%
+  ungroup()
+```
+
+```{r}
+library(segmented)
+
+summarise_exposure_vivax <- summarise_exposure_sero %>% 
+  filter(exposure == "P. Vivax Exposure") %>% 
+  mutate(age = 1:8)
+
+fit_vivax <- lm(result_exposure ~ age,
+                data = summarise_exposure_vivax)
+
+
+fit_vivax_segmented <- segmented::segmented(fit_vivax, ~ age)
+summary(fit_vivax_segmented)
+
+plot(summarise_exposure_vivax$age, summarise_exposure_vivax$result_exposure)
+plot(fit_vivax_segmented, add = TRUE)
+
+summarise_exposure_falc <- summarise_exposure_sero %>% 
+  filter(exposure == "P. Falciparum Exposure") %>% 
+  mutate(age = 1:8)
+
+fit_falc <- lm(result_exposure ~ age,
+                data = summarise_exposure_falc)
+
+
+fit_falc_segmented <- segmented::segmented(fit_falc, ~ age) 
+summary(fit_falc_segmented)
+
+plot(summarise_exposure_vivax$age, summarise_exposure_vivax$result_exposure)
+plot(fit_vivax_segmented, add = TRUE)
+```
+
 
 ## Figure 4
 
@@ -486,7 +547,7 @@ ffi_prevalence_kmeans <- ffi_prevalence_by_household_sf %>%
   mutate(
     ffi_coords = map(
       data, 
-      ~ coordinates(as(., "Spatial"))
+      ~ sp::coordinates(as(., "Spatial"))
     ),
     neigh_nb = map2(
       data, ffi_coords,
@@ -597,7 +658,6 @@ w.getis_sf <- ffi_w.getis %>%
 
 ### Ploting - Figure 6
 
-
 ```{r}
 data("Peru", package = "innovar")
 
@@ -609,8 +669,10 @@ crop_coordinates <- Peru %>%
 
 ffi_shp <- Peru %>% 
   st_crop(crop_coordinates)
+```
 
 
+```{r}
 plot_getis_recent <- w.getis_sf %>% 
   filter(type_plasmodium %in% c("prevalence_pf_recent", 
                                 "prevalence_pv_recent",
@@ -661,6 +723,96 @@ ggsave("02_output/plots/Fig 6. Spatial Analysis for Recent Exposure.png",
        scale = 0.9,
        device = grDevices::png)
 ```
+
+
+```{r}
+library(ggspatial)
+library(patchwork)
+```
+
+```{r}
+crop_coordinates2 <- crop_coordinates
+crop_coordinates2[2] <- crop_coordinates2[2] + 0.20
+crop_coordinates2[3] <- crop_coordinates2[3] - 0.18
+
+ffi_shp2 <- Peru %>% 
+  st_crop(crop_coordinates2)
+```
+
+
+```{r}
+# Función de trazado
+create_plot <- function(data, title) {
+  ggplot(data) +
+    geom_sf(data = ffi_shp2, color = NA) + 
+    annotation_map_tile(type = "cartolight", zoom = 12) +
+    geom_sf(aes(col = LISA_clust,
+                alpha = LISA_clust), 
+            size = 1.7) +
+    geom_sf(data = ffi_shp2 %>%
+              filter(distr %in% c("INDIANA", "BELEN")),
+            linewidth = 0.5, fill = NA,
+            linetype = "dashed") +
+    scale_color_manual(
+      values = c("#03595c", "#5dafa6", "#87cdb5",
+                 "#D3D3D3",
+                 "#efc38f", "#e88245", "#e2634b"),
+      drop = FALSE
+    ) +
+    scale_alpha_manual(
+      values = c(rep(1, 3), 0.2, rep(1, 3)),
+      drop = FALSE
+    ) +
+    labs(color = "Local Indicator of \nSpatial Association",
+         alpha = "Local Indicator of \nSpatial Association",
+         title = title) +
+    theme_classic(base_size = 12) +
+    theme(
+      legend.title = element_text(
+        face = "bold"
+      ),
+      plot.title = element_text(
+        face = "bold",
+        hjust = 0.5
+      ),
+      strip.text = element_text(
+        face = "bold"
+      ),
+      panel.border = element_rect(colour = "black",
+                                  fill=NA), # añade borde al panel
+      axis.line = element_line(colour = "black") 
+    ) 
+}
+
+# Crear gráficos
+plot1 <- w.getis_sf %>% 
+  filter(type_plasmodium == "prevalence_pf_recent") %>% 
+  create_plot(title = bquote('Prevalence '* 'Recent '* italic('P. falciparum')))
+
+plot2 <- w.getis_sf %>% 
+  filter(type_plasmodium == "prevalence_pv_recent") %>% 
+  create_plot(title = bquote('Prevalence '* 'Recent '* italic('P. vivax')))
+
+# Combinar gráficos
+combined_plot <- plot1 + plot2 +
+  plot_layout(guides = "collect") + # une las guías de los dos gráficos
+  plot_annotation(
+    title = "Spatial Analysis for Recent Exposure",
+    theme = theme(
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
+    )
+  )
+```
+
+```{r eval = FALSE}
+ggsave("02_output/plots/Fig 6. Spatial Analysis for Recent Exposure raster.png",
+       combined_plot,
+       dpi = 400,
+       width = 12,
+       height = 7,
+       device = grDevices::png)
+```
+
 
 ### Ploting - Figure 7
 
@@ -714,6 +866,39 @@ ggsave("02_output/plots/Fig 7. Spatial Analysis for Historical Exposure.png",
        scale = 0.9,
        device = grDevices::png)
 ```
+
+```{r}
+
+# Crear gráficos
+plot3 <- w.getis_sf %>% 
+  filter(type_plasmodium == "prevalence_pf_historic") %>% 
+  create_plot(title = bquote('Prevalence '* 'Historic '* italic('P. falciparum')))
+
+plot4 <- w.getis_sf %>% 
+  filter(type_plasmodium == "prevalence_pv_historic") %>% 
+  create_plot(title = bquote('Prevalence '* 'Historic '* italic('P. vivax')))
+
+# Combinar gráficos
+combined_plot2 <- plot3 + plot4 +
+  plot_layout(guides = "collect") + # une las guías de los dos gráficos
+  plot_annotation(
+    title = "Spatial Analysis for Historic Exposure",
+    theme = theme(
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
+    )
+  )
+```
+
+```{r eval = FALSE}
+ggsave("02_output/plots/Fig 7. Spatial Analysis for Historic Exposure raster.png",
+       combined_plot2,
+       dpi = 400,
+       width = 12,
+       height = 7,
+       device = grDevices::png)
+```
+
+
 
 # Table descriptive
 
