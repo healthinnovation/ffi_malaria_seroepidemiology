@@ -171,6 +171,13 @@ crop_coordinates2[3] <- crop_coordinates2[3] - 0.18
 
 ffi_shp2 <- Peru %>% 
   st_crop(crop_coordinates2)
+
+iquitos_centro <- tibble(
+  "ffi_h_health_facility_name" = "Hospital Regional de Loreto",
+  Longitude = -73.25385902080906,
+  Latitude = -3.7264060164148716,
+) %>% 
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326)
 ```
 
 ```{r}
@@ -178,19 +185,45 @@ ffi_shp2 <- Peru %>%
 colorPalette <- hcl.colors(17, palette = "zissou")
 
 plot_recent_exposure <- ffi_household_gps %>% 
+  filter(recent_exposure < 0.45) %>% 
   ggplot() +
   geom_sf(data = ffi_shp2, color = NA) +
   annotation_map_tile(type = "cartolight", zoom = 12) +
-  geom_sf(aes(col = recent_exposure), 
+  geom_sf(aes(col = recent_exposure,
+              shape = "Households"), 
+          size = 2,
+          alpha = 0.4) +
+  geom_sf(data = ffi_household_gps %>% 
+            filter(recent_exposure >= 0.45),
+          aes(col = recent_exposure,
+              shape = "Households"), 
           size = 2) +
   geom_sf(data = ffi_shp2 %>%
             filter(distr %in% c("INDIANA", "BELEN")),
           linewidth = 0.5, fill = NA,
           linetype = "dashed") +
+  geom_sf(data = iquitos_centro,
+          aes(shape = "Loreto Regional Hospital"),
+          size = 3) +
+  # ggimage::geom_image(data = iquitos_centro,
+  #                     aes(
+  #                       x = Longitude,
+  #                       y = Latitude,
+  #                       image = "01_data/processed/hospital.png"
+  #                     )) +
   scale_color_gradientn(colors = colorPalette) +
+  scale_shape_manual(values = c(
+    "Households" = 19,
+    "Loreto Regional Hospital" = 17
+  )) + 
   labs(
     title = "Recent Exposure",
-    color = "Exposure"
+    color = "Household Seropositivity \nRate",
+    shape = NULL
+  ) +
+  guides(
+    color = guide_colorbar(order = 1),  # Set color legend to second position
+    shape = guide_legend(order = 2)  # Set shape legend to first position
   ) +
   theme_classic(base_size = 12) +
     theme(
@@ -210,19 +243,39 @@ plot_recent_exposure <- ffi_household_gps %>%
     ) 
 
 plot_historical_exposure <- ffi_household_gps %>% 
+  filter(historical_exposure < 0.45) %>% 
   ggplot() +
   geom_sf(data = ffi_shp2, color = NA) +
   annotation_map_tile(type = "cartolight", zoom = 12) +
-  geom_sf(aes(col = historical_exposure), 
+  geom_sf(aes(col = historical_exposure,
+              shape = "Households"), 
+          size = 2,
+          alpha = 0.4) +
+  geom_sf(data = ffi_household_gps %>% 
+            filter(historical_exposure >= 0.45),
+          aes(col = historical_exposure,
+              shape = "Households"), 
           size = 2) +
   geom_sf(data = ffi_shp2 %>%
             filter(distr %in% c("INDIANA", "BELEN")),
           linewidth = 0.5, fill = NA,
           linetype = "dashed") +
+  geom_sf(data = iquitos_centro,
+          aes(shape = "Loreto Regional Hospital"),
+          size = 3) +
   scale_color_gradientn(colors = colorPalette) +
+  scale_shape_manual(values = c(
+    "Households" = 19,
+    "Loreto Regional Hospital" = 17
+  )) +
   labs(
     title = "Historical Exposure",
-    color = "Exposure"
+    color = "Household Seropositivity \nRate",
+    shape = NULL
+  ) +
+  guides(
+    color = guide_colorbar(order = 1),  # Set color legend to second position
+    shape = guide_legend(order = 2)  # Set shape legend to first position
   ) +
   theme_classic(base_size = 12) +
     theme(
@@ -247,7 +300,6 @@ combined_plot_exposure <- plot_recent_exposure + plot_historical_exposure +
   plot_layout(guides = "collect")
 ```
 
-
 ```{r eval = FALSE}
 ggsave("02_output/plots/Fig 1. Exposure by households with raster.png",
        combined_plot_exposure,
@@ -259,7 +311,6 @@ ggsave("02_output/plots/Fig 1. Exposure by households with raster.png",
 
 
 ## Figure 3
-
 
 ```{r}
 sero_timeofmalaria_district_distance_rh_hf_sampling <- seropositivy_summarise(
@@ -766,17 +817,108 @@ ffi_prevalence_by_household_sf <- ffi_prevalence_by_household %>%
     coords = c("ffi_gps_long", "ffi_gps_lat"),
     crs = 4326
   ) 
-  
+```
 
-ffi_prevalence_kmeans <- ffi_prevalence_by_household_sf %>% 
+```{r}
+global_g <- function(data, k) {
+  data %>% 
+    group_nest(
+      ffi_is_district
+    ) %>% 
+    mutate(
+      ffi_coords = map(
+        data, 
+        ~ sp::coordinates(as(., "Spatial"))
+      ),
+      neigh_nb = map2(
+        data, ffi_coords,
+        ~ knn2nb(
+            knearneigh(
+              .y,
+              k = k,
+              longlat = TRUE
+            ),
+            row.names = .x$cod_id
+          )
+      ),
+      self = map(
+        neigh_nb,
+        ~ nb2listw(
+          .,
+          style = "W", 
+          zero.policy = TRUE
+        )
+      ),
+      data_nosf = map(
+        data,
+        ~ .x %>% 
+          st_set_geometry(NULL) %>% 
+          pivot_longer(
+            cols = c(prevalence_pf_recent:prevalence_historical_exposure),
+            names_to = "type_plasmodium",
+            values_to = "prevalence"
+          ) %>% 
+          group_nest(type_plasmodium,
+                     .key = "data_nosf")
+      )
+    ) %>% 
+    unnest(data_nosf) %>% 
+    mutate(
+      global_g = map2(
+        data_nosf,
+        self,
+        ~ globalG.test(.x$prevalence, .y)
+      ),
+      global_g = map_dfr(global_g,
+                         broom::tidy)
+    ) %>% 
+    unpack(global_g) %>% 
+    mutate(p.value = scales::pvalue(p.value)) %>% 
+    select(ffi_is_district, 
+           type_plasmodium,
+           "GlobalG" = estimate1,
+           p.value) 
+}
+```
+
+```{r}
+global_g_kmeans <- global_g(ffi_prevalence_by_household_sf, 1) %>% 
+  left_join(
+    global_g(ffi_prevalence_by_household_sf, 2),
+    by = join_by(ffi_is_district, type_plasmodium),
+    suffix = c(".k1", ".k2")
+  ) %>% 
+  left_join(
+    global_g(ffi_prevalence_by_household_sf, 3),
+    by = join_by(ffi_is_district, type_plasmodium)
+  ) %>% 
+  left_join(
+    global_g(ffi_prevalence_by_household_sf, 4),
+    by = join_by(ffi_is_district, type_plasmodium),
+    suffix = c(".k3", ".k4")
+   )  %>% 
+  left_join(
+    global_g(ffi_prevalence_by_household_sf, 5),
+    by = join_by(ffi_is_district, type_plasmodium)
+  ) %>% 
+  rename("GlobalG.k5" = "GlobalG",
+         "p.value.k5" = "p.value") %>% 
+  mutate(
+    k_best = apply(select(., starts_with("GlobalG")), 1, which.max)
+  )
+```
+
+
+```{r}
+ffi_prevalence_kmeans <- ffi_prevalence_by_household_sf %>%
   group_nest(
     ffi_is_district,
     #ffi_is_community
     #ffi_is_health_facility_name
-  ) %>% 
+  ) %>%
   mutate(
     ffi_coords = map(
-      data, 
+      data,
       ~ sp::coordinates(as(., "Spatial"))
     ),
     neigh_nb = map2(
@@ -790,28 +932,51 @@ ffi_prevalence_kmeans <- ffi_prevalence_by_household_sf %>%
           row.names = .x$cod_id
         )
     ),
-    neigh_kd1 = pmap(
-      list(ffi_coords,
-           neigh_nb,
-           data),
-      ~ dnearneigh(
-        ..1,
-        d1 = 0, 
-        d2 = max(unlist(nbdists(..2, ..1))), 
-        row.names = ..3$cod_id
-      )
-    ),
+    # neigh_kd1 = pmap(
+    #   list(ffi_coords,
+    #        neigh_nb,
+    #        data),
+    #   ~ dnearneigh(
+    #     ..1,
+    #     d1 = 0,
+    #     d2 = max(unlist(nbdists(..2, ..1))),
+    #     row.names = ..3$cod_id
+    #   )
+    # ),
+    # neigh_kd1_list = map(neigh_kd1,
+    #                      unlist),
     self = map(
-      neigh_kd1,
+      neigh_nb,
       ~ nb2listw(
         .,
-        style = "W", 
+        style = "W",
         zero.policy = TRUE
       )
-    )
+    ),
+    neigh_nb4 = map2(
+      data, ffi_coords,
+      ~ knn2nb(
+          knearneigh(
+            .y,
+            k = 4,
+            longlat = TRUE
+          ),
+          row.names = .x$cod_id
+        )
+    ),
+    self4 = map(
+      neigh_nb4,
+      ~ nb2listw(
+        .,
+        style = "W",
+        zero.policy = TRUE
+      )
+    ),
   )
-
 ```
+
+
+
 
 ```{r}
 
@@ -826,7 +991,7 @@ labels <- c("Cold spot: 99% confidence",
             "Hot spot: 95% confidence",
             "Hot spot: 99% confidence")
 
-ffi_w.getis <- ffi_prevalence_kmeans %>% 
+ffi_kmeans_preparation <- ffi_prevalence_kmeans %>% 
   mutate(
     data_nosf = map(
       data,
@@ -841,7 +1006,10 @@ ffi_w.getis <- ffi_prevalence_kmeans %>%
                    .key = "data_nosf")
     )
   ) %>% 
-  unnest(data_nosf) %>% 
+  unnest(data_nosf) 
+
+
+ffi_w.getis <- ffi_kmeans_preparation %>% 
   mutate(
     LISA = map2(data_nosf,
                self,
@@ -852,17 +1020,28 @@ ffi_w.getis <- ffi_prevalence_kmeans %>%
                            labels = labels)),
     LISA_label_orig = map(LISA,
                           ~ attributes(.)$cluster),
-    LISA = map(LISA, as.numeric)
+    LISA = map(LISA, as.numeric),
+    LISA4 = map2(data_nosf,
+                 self4,
+                 ~ localG(.x$prevalence, .y)),
+    LISA_clust4 = map(LISA4,
+                     ~ cut(., include.lowest = TRUE,
+                           breaks = breaks, 
+                           labels = labels)),
+    LISA_label_orig4 = map(LISA4,
+                          ~ attributes(.)$cluster),
+    LISA4 = map(LISA4, as.numeric)
   ) %>% 
   select(
     ffi_is_district,
     #ffi_is_community,
     #ffi_is_health_facility_name,
-    type_plasmodium:LISA_label_orig
+    type_plasmodium:LISA_label_orig4
   ) %>% 
   unnest(cols = c(data_nosf, LISA, 
-                  LISA_clust, LISA_label_orig))
-
+                  LISA_clust, LISA_label_orig,
+                  LISA4, 
+                  LISA_clust4, LISA_label_orig4))
 ```
 
 ```{r}
@@ -918,7 +1097,8 @@ plot_getis_recent <- w.getis_sf %>%
   scale_color_manual(
     values = c("#03595c", "#5dafa6", "#87cdb5",
                "grey50",
-               "#efc38f", "#e88245", "#e2634b")
+               "#efc38f", "#e88245", "#e2634b"),
+    drop = FALSE
   ) +
   # innovar::scale_color_innova("npr", na.value = "grey50") +
   # colorspace::scale_color_discrete_diverging(palette = "Blue-Red",
@@ -972,13 +1152,20 @@ ffi_shp2 <- Peru %>%
 
 ```{r}
 # Función de trazado
-create_plot <- function(data, title) {
-  ggplot(data) +
+create_plot <- function(data, title, variable) {
+  data %>% 
+    filter({{ variable }} == "Not significant") %>% 
+    ggplot() +
     geom_sf(data = ffi_shp2, color = NA) + 
     annotation_map_tile(type = "cartolight", zoom = 12) +
-    geom_sf(aes(col = LISA_clust,
-                alpha = LISA_clust), 
+    geom_sf(aes(col = {{ variable }}), 
+            alpha = 0.2,
             size = 1.7) +
+    geom_sf(data = data %>% 
+              filter({{ variable }} != "Not significant"),
+            aes(col = {{ variable }}), 
+            alpha = 1,
+            size = 2) +
     geom_sf(data = ffi_shp2 %>%
               filter(distr %in% c("INDIANA", "BELEN")),
             linewidth = 0.5, fill = NA,
@@ -1010,18 +1197,20 @@ create_plot <- function(data, title) {
       ),
       panel.border = element_rect(colour = "black",
                                   fill=NA), # añade borde al panel
-      axis.line = element_line(colour = "black") 
-    ) 
+      axis.line = element_line(colour = "black")
+    )
 }
 
 # Crear gráficos
 plot1 <- w.getis_sf %>% 
   filter(type_plasmodium == "prevalence_pf_recent") %>% 
-  create_plot(title = bquote('Seroprevalence '* 'Recent '* italic('P. falciparum')))
+  create_plot(title = bquote('Seroprevalence '* 'Recent '* italic('P. falciparum')),
+              variable = LISA_clust)
 
 plot2 <- w.getis_sf %>% 
   filter(type_plasmodium == "prevalence_pv_recent") %>% 
-  create_plot(title = bquote('Seroprevalence '* 'Recent '* italic('P. vivax')))
+  create_plot(title = bquote('Seroprevalence '* 'Recent '* italic('P. vivax')),
+              variable = LISA_clust)
 
 # Combinar gráficos
 combined_plot <- plot1 + plot2 +
@@ -1102,11 +1291,13 @@ ggsave("02_output/plots/Fig 7. Spatial Analysis for Historical Exposure.png",
 # Crear gráficos
 plot3 <- w.getis_sf %>% 
   filter(type_plasmodium == "prevalence_pf_historic") %>% 
-  create_plot(title = bquote('Seroprevalence '* 'Historical '* italic('P. falciparum')))
+  create_plot(title = bquote('Seroprevalence '* 'Historical '* italic('P. falciparum')),
+              variable = LISA_clust)
 
 plot4 <- w.getis_sf %>% 
   filter(type_plasmodium == "prevalence_pv_historic") %>% 
-  create_plot(title = bquote('Seroprevalence '* 'Historical '* italic('P. vivax')))
+  create_plot(title = bquote('Seroprevalence '* 'Historical '* italic('P. vivax')),
+              variable = LISA_clust)
 
 # Combinar gráficos
 combined_plot2 <- plot3 + plot4 +
@@ -1147,6 +1338,46 @@ ggsave("02_output/plots/Fig 5. Spatial Analysis for Type of Exposure raster.png"
        height = 14,
        device = grDevices::png)
 ```
+
+
+### With k = 4
+
+```{r}
+plot1_k4 <- w.getis_sf %>% 
+  filter(type_plasmodium == "prevalence_pf_recent") %>% 
+  create_plot(title = bquote('Seroprevalence '* 'Recent '* italic('P. falciparum')),
+              variable = LISA_clust4)
+
+plot2_k4 <- w.getis_sf %>% 
+  filter(type_plasmodium == "prevalence_pv_recent") %>% 
+  create_plot(title = bquote('Seroprevalence '* 'Recent '* italic('P. vivax')),
+              variable = LISA_clust4)
+
+plot3_k4 <- w.getis_sf %>% 
+  filter(type_plasmodium == "prevalence_pf_historic") %>% 
+  create_plot(title = bquote('Seroprevalence '* 'Historical '* italic('P. falciparum')),
+              variable = LISA_clust4)
+
+plot4_k4 <- w.getis_sf %>% 
+  filter(type_plasmodium == "prevalence_pv_historic") %>% 
+  create_plot(title = bquote('Seroprevalence '* 'Historical '* italic('P. vivax')),
+              variable = LISA_clust4)
+```
+
+```{r}
+combined_plot_total_k4 <- (plot1_k4 + plot2_k4) / (plot3_k4 + plot4_k4) +
+  plot_layout(guides = "collect") 
+```
+
+```{r eval = FALSE}
+ggsave("02_output/plots/Fig 5. Spatial Analysis for Type of Exposure raster with K4.png",
+       combined_plot_total_k4,
+       dpi = 400,
+       width = 12,
+       height = 14,
+       device = grDevices::png)
+```
+
 
 
 # Supplementary Figure 4
