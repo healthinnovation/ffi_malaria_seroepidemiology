@@ -46,9 +46,12 @@ poblacion <- readRDS("./01_data/raw/poblacion_inei_2017.rds")
 
 ## Figure 1 - B
 
+```{r}
+library(patchwork)
+```
 
-```{r dpi = 300, fig.align='center'}
-fig1_malaria_api_belen_indiana_A <- data_malaria_long %>% 
+```{r}
+data_malaria_long_f <- data_malaria_long %>% 
   filter(!(malaria == "Confirmed P. Vivax" & `Date by month` < lubridate::ymd("2009-01-01"))) %>% 
   mutate(
     `Date by month` = lubridate::ceiling_date(`Date by month`,
@@ -63,39 +66,80 @@ fig1_malaria_api_belen_indiana_A <- data_malaria_long %>%
       District == "INDIANA" ~ (cases/11648)*1000,
     ),
     District = str_to_title(District)
+  )
+```
+
+```{r}
+max_cases_malaria <- data_malaria_long_f %>% 
+  slice_max(cases, n = 1,
+            by = malaria)
+```
+
+
+```{r dpi = 300, fig.align='center'}
+fig1_malaria_api_belen_indiana_A_1 <- data_malaria_long_f %>% 
+  filter(
+    malaria == "Confirmed P. Falciparum"
   ) %>% 
   ggplot(aes(x = `Date by month`, y = cases,
              color = District)) +
   geom_line(linewidth = 0.8) +
-  facet_wrap(vars(malaria)) +
+  scale_y_continuous(
+    limits = c(0, max(max_cases_malaria$cases))
+  ) +
   labs(
+    title = bquote('Confirmed ' * italic('P. Falciparum')),
     x = NULL,
     y = "API"
   ) +
   innovar::scale_color_innova("npr") +
-  # geom_hline(yintercept=40, linetype="dashed", 
-  #               color = "black", linewidth = 2) +
-  # annotate("text", label = "Very low \ntransmission",
-  #          y = 35, x = lubridate::ymd("2019-01-01")) +
-  theme_minimal() +
+  theme_minimal(base_size = 10) +
   theme(
-    legend.position = "bottom"
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5)
   )
 
-fig1_malaria_api_belen_indiana_A
+fig1_malaria_api_belen_indiana_A_2 <- data_malaria_long_f %>% 
+  filter(
+    malaria == "Confirmed P. Vivax"
+  ) %>% 
+  ggplot(aes(x = `Date by month`, y = cases,
+             color = District)) +
+  geom_line(linewidth = 0.8) +
+  scale_y_continuous(
+    limits = c(0, max(max_cases_malaria$cases))
+  ) +
+  labs(
+    title = bquote('Confirmed ' * italic('P. Vivax')),
+    x = NULL,
+    y = NULL
+  ) +
+  innovar::scale_color_innova("npr") +
+  theme_minimal(base_size = 10) +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5)
+  )
 ```
+
+```{r}
+fig1_malaria_api_belen_indiana_A <- 
+  fig1_malaria_api_belen_indiana_A_1 +
+  fig1_malaria_api_belen_indiana_A_2 +
+  plot_layout(guides='collect') &
+  theme(legend.position='bottom')
+```
+
 
 ```{r eval=FALSE}
 ggsave("02_output/plots/Fig 1. Malaria Cases in Indiana and Belen, 2000-2021 - A.png", 
-       fig2_malaria_api_belen_indiana_A,
+       fig1_malaria_api_belen_indiana_A,
        width = 6,
        height = 4.5,
-       scale = 0.8,
+       scale = 0.85,
        dpi = 300,
        bg = "white")
 ```
-
-
 
 ```{r dpi = 300, fig.align='center'}
 fig1_malaria_api_belen_indiana_B <- data_malaria_long %>% 
@@ -141,6 +185,42 @@ ggsave("02_output/plots/Fig 1. Malaria Cases in Indiana and Belen, 2000-2021 - B
        bg = "white")
 ```
 
+## Combined plots: Figure 1
+
+
+```{r}
+map1 <- cowplot::ggdraw() + 
+  cowplot::draw_image(
+    png::readPNG("01_data/processed/mapa.png")
+  )
+
+fig1_A <- cowplot::ggdraw() + 
+  cowplot::draw_image(
+    png::readPNG("02_output/plots/Fig 1. Malaria Cases in Indiana and Belen, 2000-2021 - A.png")
+  )
+```
+
+```{r}
+fig1_malaria <- map1 + fig1_A +
+  plot_layout(tag_level = "new") + 
+  plot_annotation(tag_levels = c("a", "b"))
+```
+
+```{r}
+ggsave("02_output/plots/Fig 1. Study Area and Malaria Cases in Indiana and Belen, 2000-2021.png", 
+       fig1_malaria,
+       width = 13,
+       height = 5,
+       dpi = 300,
+       bg = "white")
+
+ggsave("02_output/plots/Fig 1. Study Area and Malaria Cases in Indiana and Belen, 2000-2021.tiff", 
+       fig1_malaria,
+       width = 13,
+       height = 5,
+       dpi = 300,
+       bg = "white")
+```
 
 ## Figure 2
 
@@ -301,12 +381,20 @@ combined_plot_exposure <- plot_recent_exposure + plot_historical_exposure +
 ```
 
 ```{r eval = FALSE}
-ggsave("02_output/plots/Fig 1. Exposure by households with raster.png",
+ggsave("02_output/plots/Fig 2. Exposure by households with raster.png",
        combined_plot_exposure,
        dpi = 400,
        width = 12,
        height = 7,
        device = grDevices::png)
+```
+
+```{r eval = FALSE}
+ggsave("02_output/plots/Fig 2. Exposure by households with raster.tiff",
+       combined_plot_exposure,
+       dpi = 400,
+       width = 12,
+       height = 7)
 ```
 
 
@@ -375,6 +463,24 @@ sero_timeofmalaria_district_distance_rh_hf_sampling
 ```{r eval=FALSE}
 ggsave(
   "./02_output/plots/Fig 3. Seropositivity according to time of exposure to malaria by district and distance category.png",
+  sero_timeofmalaria_district_distance_rh_hf_sampling,
+  dpi = 300,
+  bg = "white",
+  width = 12,
+  height = 8.5
+)
+
+ggsave(
+  "./02_output/plots/Fig 3. Seropositivity according to time of exposure to malaria by district and distance category.eps",
+  sero_timeofmalaria_district_distance_rh_hf_sampling,
+  dpi = 300,
+  bg = "white",
+  width = 12,
+  height = 8.5
+)
+
+ggsave(
+  "./02_output/plots/Fig 3. Seropositivity according to time of exposure to malaria by district and distance category.tiff",
   sero_timeofmalaria_district_distance_rh_hf_sampling,
   dpi = 300,
   bg = "white",
@@ -545,7 +651,7 @@ malaria_seropositivity_type_exposure_belen <- ffi_total %>%
   innovar::scale_fill_innova("npr") +
   labs(
     title = str_wrap("Serological results by plasmodium type of malaria in the Belen District", 100),
-    x = "Communities",
+    x = "Villages",
     y = "Percentage"
   ) +
   guides(
@@ -646,7 +752,7 @@ malaria_seropositivity_type_exposure_indiana <- ffi_total %>%
   innovar::scale_fill_innova("npr") +
   labs(
     title = str_wrap("Serological results by plasmodium type of malaria in the Indiana District", 100),
-    x = "Communities",
+    x = "Villages",
     y = "Percentage"
   ) +
   guides(
@@ -724,7 +830,8 @@ malaria_seropositivity_type_exposure_indiana <-
   malaria_seropositivity_type_exposure_indiana + 
   labs(
     title = "Indiana",
-    y = NULL
+    y = NULL,
+    x = NULL
   ) +
   theme(
     plot.title = element_text(hjust = 0.5,
@@ -751,6 +858,18 @@ ggsave("02_output/plots/Fig 4. Malaria Seropositivity by type of exposure and pl
        width = 15,
        height = 8,
        device = grDevices::png)
+
+ggsave("02_output/plots/Fig 4. Malaria Seropositivity by type of exposure and plasmodium.eps",
+       malaria_seropositivity_type_exposure,
+       dpi = 400,
+       width = 15,
+       height = 8)
+
+ggsave("02_output/plots/Fig 4. Malaria Seropositivity by type of exposure and plasmodium.tiff",
+       malaria_seropositivity_type_exposure,
+       dpi = 400,
+       width = 15,
+       height = 8)
 ```
 
 ## Figure 5
@@ -820,105 +939,15 @@ ffi_prevalence_by_household_sf <- ffi_prevalence_by_household %>%
 ```
 
 ```{r}
-global_g <- function(data, k) {
-  data %>% 
-    group_nest(
-      ffi_is_district
-    ) %>% 
-    mutate(
-      ffi_coords = map(
-        data, 
-        ~ sp::coordinates(as(., "Spatial"))
-      ),
-      neigh_nb = map2(
-        data, ffi_coords,
-        ~ knn2nb(
-            knearneigh(
-              .y,
-              k = k,
-              longlat = TRUE
-            ),
-            row.names = .x$cod_id
-          )
-      ),
-      self = map(
-        neigh_nb,
-        ~ nb2listw(
-          .,
-          style = "W", 
-          zero.policy = TRUE
-        )
-      ),
-      data_nosf = map(
-        data,
-        ~ .x %>% 
-          st_set_geometry(NULL) %>% 
-          pivot_longer(
-            cols = c(prevalence_pf_recent:prevalence_historical_exposure),
-            names_to = "type_plasmodium",
-            values_to = "prevalence"
-          ) %>% 
-          group_nest(type_plasmodium,
-                     .key = "data_nosf")
-      )
-    ) %>% 
-    unnest(data_nosf) %>% 
-    mutate(
-      global_g = map2(
-        data_nosf,
-        self,
-        ~ globalG.test(.x$prevalence, .y)
-      ),
-      global_g = map_dfr(global_g,
-                         broom::tidy)
-    ) %>% 
-    unpack(global_g) %>% 
-    mutate(p.value = scales::pvalue(p.value)) %>% 
-    select(ffi_is_district, 
-           type_plasmodium,
-           "GlobalG" = estimate1,
-           p.value) 
-}
-```
-
-```{r}
-global_g_kmeans <- global_g(ffi_prevalence_by_household_sf, 1) %>% 
-  left_join(
-    global_g(ffi_prevalence_by_household_sf, 2),
-    by = join_by(ffi_is_district, type_plasmodium),
-    suffix = c(".k1", ".k2")
-  ) %>% 
-  left_join(
-    global_g(ffi_prevalence_by_household_sf, 3),
-    by = join_by(ffi_is_district, type_plasmodium)
-  ) %>% 
-  left_join(
-    global_g(ffi_prevalence_by_household_sf, 4),
-    by = join_by(ffi_is_district, type_plasmodium),
-    suffix = c(".k3", ".k4")
-   )  %>% 
-  left_join(
-    global_g(ffi_prevalence_by_household_sf, 5),
-    by = join_by(ffi_is_district, type_plasmodium)
-  ) %>% 
-  rename("GlobalG.k5" = "GlobalG",
-         "p.value.k5" = "p.value") %>% 
-  mutate(
-    k_best = apply(select(., starts_with("GlobalG")), 1, which.max)
-  )
-```
-
-
-```{r}
-ffi_prevalence_kmeans <- ffi_prevalence_by_household_sf %>%
+ffi_prevalence_kmeans <- ffi_prevalence_by_household_sf %>% 
   group_nest(
     ffi_is_district,
     #ffi_is_community
     #ffi_is_health_facility_name
-  ) %>%
+  ) %>% 
   mutate(
     ffi_coords = map(
-      data,
+      data, 
       ~ sp::coordinates(as(., "Spatial"))
     ),
     neigh_nb = map2(
@@ -932,54 +961,29 @@ ffi_prevalence_kmeans <- ffi_prevalence_by_household_sf %>%
           row.names = .x$cod_id
         )
     ),
-    # neigh_kd1 = pmap(
-    #   list(ffi_coords,
-    #        neigh_nb,
-    #        data),
-    #   ~ dnearneigh(
-    #     ..1,
-    #     d1 = 0,
-    #     d2 = max(unlist(nbdists(..2, ..1))),
-    #     row.names = ..3$cod_id
-    #   )
-    # ),
-    # neigh_kd1_list = map(neigh_kd1,
-    #                      unlist),
+    neigh_kd1 = pmap(
+      list(ffi_coords,
+           neigh_nb,
+           data),
+      ~ dnearneigh(
+        ..1,
+        d1 = 0, 
+        d2 = max(unlist(nbdists(..2, ..1))), 
+        row.names = ..3$cod_id
+      )
+    ),
     self = map(
-      neigh_nb,
+      neigh_kd1,
       ~ nb2listw(
         .,
-        style = "W",
+        style = "W", 
         zero.policy = TRUE
       )
-    ),
-    neigh_nb4 = map2(
-      data, ffi_coords,
-      ~ knn2nb(
-          knearneigh(
-            .y,
-            k = 4,
-            longlat = TRUE
-          ),
-          row.names = .x$cod_id
-        )
-    ),
-    self4 = map(
-      neigh_nb4,
-      ~ nb2listw(
-        .,
-        style = "W",
-        zero.policy = TRUE
-      )
-    ),
+    )
   )
 ```
 
-
-
-
 ```{r}
-
 breaks <- c(-Inf, -2.58, -1.96, 
             -1.65, 1.65, 1.96,
             2.58, Inf)
@@ -991,7 +995,7 @@ labels <- c("Cold spot: 99% confidence",
             "Hot spot: 95% confidence",
             "Hot spot: 99% confidence")
 
-ffi_kmeans_preparation <- ffi_prevalence_kmeans %>% 
+ffi_w.getis <- ffi_prevalence_kmeans %>% 
   mutate(
     data_nosf = map(
       data,
@@ -1006,10 +1010,7 @@ ffi_kmeans_preparation <- ffi_prevalence_kmeans %>%
                    .key = "data_nosf")
     )
   ) %>% 
-  unnest(data_nosf) 
-
-
-ffi_w.getis <- ffi_kmeans_preparation %>% 
+  unnest(data_nosf) %>% 
   mutate(
     LISA = map2(data_nosf,
                self,
@@ -1020,28 +1021,16 @@ ffi_w.getis <- ffi_kmeans_preparation %>%
                            labels = labels)),
     LISA_label_orig = map(LISA,
                           ~ attributes(.)$cluster),
-    LISA = map(LISA, as.numeric),
-    LISA4 = map2(data_nosf,
-                 self4,
-                 ~ localG(.x$prevalence, .y)),
-    LISA_clust4 = map(LISA4,
-                     ~ cut(., include.lowest = TRUE,
-                           breaks = breaks, 
-                           labels = labels)),
-    LISA_label_orig4 = map(LISA4,
-                          ~ attributes(.)$cluster),
-    LISA4 = map(LISA4, as.numeric)
+    LISA = map(LISA, as.numeric)
   ) %>% 
   select(
     ffi_is_district,
     #ffi_is_community,
     #ffi_is_health_facility_name,
-    type_plasmodium:LISA_label_orig4
+    type_plasmodium:LISA_label_orig
   ) %>% 
   unnest(cols = c(data_nosf, LISA, 
-                  LISA_clust, LISA_label_orig,
-                  LISA4, 
-                  LISA_clust4, LISA_label_orig4))
+                  LISA_clust, LISA_label_orig))
 ```
 
 ```{r}
@@ -1337,47 +1326,13 @@ ggsave("02_output/plots/Fig 5. Spatial Analysis for Type of Exposure raster.png"
        width = 12,
        height = 14,
        device = grDevices::png)
-```
 
-
-### With k = 4
-
-```{r}
-plot1_k4 <- w.getis_sf %>% 
-  filter(type_plasmodium == "prevalence_pf_recent") %>% 
-  create_plot(title = bquote('Seroprevalence '* 'Recent '* italic('P. falciparum')),
-              variable = LISA_clust4)
-
-plot2_k4 <- w.getis_sf %>% 
-  filter(type_plasmodium == "prevalence_pv_recent") %>% 
-  create_plot(title = bquote('Seroprevalence '* 'Recent '* italic('P. vivax')),
-              variable = LISA_clust4)
-
-plot3_k4 <- w.getis_sf %>% 
-  filter(type_plasmodium == "prevalence_pf_historic") %>% 
-  create_plot(title = bquote('Seroprevalence '* 'Historical '* italic('P. falciparum')),
-              variable = LISA_clust4)
-
-plot4_k4 <- w.getis_sf %>% 
-  filter(type_plasmodium == "prevalence_pv_historic") %>% 
-  create_plot(title = bquote('Seroprevalence '* 'Historical '* italic('P. vivax')),
-              variable = LISA_clust4)
-```
-
-```{r}
-combined_plot_total_k4 <- (plot1_k4 + plot2_k4) / (plot3_k4 + plot4_k4) +
-  plot_layout(guides = "collect") 
-```
-
-```{r eval = FALSE}
-ggsave("02_output/plots/Fig 5. Spatial Analysis for Type of Exposure raster with K4.png",
-       combined_plot_total_k4,
+ggsave("02_output/plots/Fig 5. Spatial Analysis for Type of Exposure raster.tiff",
+       combined_plot_total,
        dpi = 400,
        width = 12,
-       height = 14,
-       device = grDevices::png)
+       height = 14)
 ```
-
 
 
 # Supplementary Figure 4
@@ -1557,7 +1512,7 @@ combined_plot_lisa_communities <- plot_ratio_lisa_communities_pf_belen / plot_ra
   plot_ratio_lisa_communities_pf_indiana / plot_ratio_lisa_communities_pv_indiana +
   plot_layout(guides = "collect") + # une las guías de los dos gráficos
   plot_annotation(
-    title = "Spatial Analysis by Villages",
+    #title = "Spatial Analysis by Villages",
     theme = theme(
       plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
     )
@@ -1569,6 +1524,24 @@ combined_plot_lisa_communities <- plot_ratio_lisa_communities_pf_belen / plot_ra
 ```{r}
 ggsave(
   "02_output/plots/Fig 8. Local Indicator of Spatial Association by Communities.png",
+  combined_plot_lisa_communities,
+  width = 10,
+  height = 12,
+  dpi = 300,
+  bg = "white"
+)
+
+ggsave(
+  "02_output/plots/Fig 8. Local Indicator of Spatial Association by Communities.eps",
+  combined_plot_lisa_communities,
+  width = 10,
+  height = 12,
+  dpi = 300,
+  bg = "white"
+)
+
+ggsave(
+  "02_output/plots/Fig 8. Local Indicator of Spatial Association by Communities.tiff",
   combined_plot_lisa_communities,
   width = 10,
   height = 12,
@@ -1934,12 +1907,6 @@ interpretCI::propCI_sub(ffi_total, "pv_exposure") %>%
   mutate(
     across(everything(), ~ formattable::percent(., digits = 1)),
   )
-```
-
-# Segmented regression
-
-```{r}
-lm()
 ```
 
 
