@@ -192,19 +192,25 @@ ggsave("02_output/plots/Fig 1. Malaria Cases in Indiana and Belen, 2000-2021 - B
 map1 <- cowplot::ggdraw() + 
   cowplot::draw_image(
     png::readPNG("01_data/processed/mapa.png")
-  )
+  ) +
+  theme(plot.tag.position = c(0, 1)) +
+  plot_annotation(tag_levels = 'a')
 
 fig1_A <- cowplot::ggdraw() + 
   cowplot::draw_image(
     png::readPNG("02_output/plots/Fig 1. Malaria Cases in Indiana and Belen, 2000-2021 - A.png")
-  )
+  ) +
+  theme(plot.tag.position = c(0.03, 1),
+        plot.margin = margin(0, 0, 0, 0.5, "cm")) +
+  plot_annotation(tag_levels = 'a') 
 ```
 
 ```{r}
 fig1_malaria <- map1 + fig1_A +
-  plot_layout(tag_level = "new") + 
-  plot_annotation(tag_levels = c("a", "b"))
+  theme(plot.tag = element_text(face = 'bold'))
+fig1_malaria
 ```
+
 
 ```{r}
 ggsave("02_output/plots/Fig 1. Study Area and Malaria Cases in Indiana and Belen, 2000-2021.png", 
@@ -241,7 +247,6 @@ ffi_shp <- Peru %>%
 
 ```{r}
 library(ggspatial)
-library(patchwork)
 ```
 
 ```{r}
@@ -261,7 +266,6 @@ iquitos_centro <- tibble(
 ```
 
 ```{r}
-
 colorPalette <- hcl.colors(17, palette = "zissou")
 
 plot_recent_exposure <- ffi_household_gps %>% 
@@ -297,7 +301,7 @@ plot_recent_exposure <- ffi_household_gps %>%
     "Loreto Regional Hospital" = 17
   )) + 
   labs(
-    title = "Recent Exposure",
+    #title = "Recent Exposure",
     color = "Household Seropositivity \nRate",
     shape = NULL
   ) +
@@ -306,21 +310,23 @@ plot_recent_exposure <- ffi_household_gps %>%
     shape = guide_legend(order = 2)  # Set shape legend to first position
   ) +
   theme_classic(base_size = 12) +
-    theme(
-      legend.title = element_text(
-        face = "bold"
-      ),
-      plot.title = element_text(
-        face = "bold",
-        hjust = 0.5
-      ),
-      strip.text = element_text(
-        face = "bold"
-      ),
-      panel.border = element_rect(colour = "black",
-                                  fill=NA), # añade borde al panel
-      axis.line = element_line(colour = "black") 
-    ) 
+  theme(
+    legend.title = element_text(
+      face = "bold"
+    ),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5
+    ),
+    strip.text = element_text(
+      face = "bold"
+    ),
+    panel.border = element_rect(colour = "black",
+                                fill=NA), # añade borde al panel
+    axis.line = element_line(colour = "black"),
+    plot.tag.position = c(0, 1),
+    plot.tag = element_text(face = 'bold')
+  ) 
 
 plot_historical_exposure <- ffi_household_gps %>% 
   filter(historical_exposure < 0.45) %>% 
@@ -349,7 +355,7 @@ plot_historical_exposure <- ffi_household_gps %>%
     "Loreto Regional Hospital" = 17
   )) +
   labs(
-    title = "Historical Exposure",
+    #title = "Historical Exposure",
     color = "Household Seropositivity \nRate",
     shape = NULL
   ) +
@@ -371,32 +377,35 @@ plot_historical_exposure <- ffi_household_gps %>%
       ),
       panel.border = element_rect(colour = "black",
                                   fill=NA), # añade borde al panel
-      axis.line = element_line(colour = "black") 
+      axis.line = element_line(colour = "black"),
+      plot.tag.position = c(0, 1),
+      plot.margin = margin(0, 0, 0, 0.5, "cm"),
+      plot.tag = element_text(face = 'bold')
     ) 
 ```
 
 ```{r}
 combined_plot_exposure <- plot_recent_exposure + plot_historical_exposure +
-  plot_layout(guides = "collect")
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = 'a') 
 ```
 
 ```{r eval = FALSE}
 ggsave("02_output/plots/Fig 2. Exposure by households with raster.png",
        combined_plot_exposure,
-       dpi = 400,
+       dpi = 300,
        width = 12,
-       height = 7,
+       height = 6.2,
        device = grDevices::png)
 ```
 
 ```{r eval = FALSE}
 ggsave("02_output/plots/Fig 2. Exposure by households with raster.tiff",
        combined_plot_exposure,
-       dpi = 400,
+       dpi = 300,
        width = 12,
-       height = 7)
+       height = 6.2)
 ```
-
 
 ## Figure 3
 
@@ -650,7 +659,7 @@ malaria_seropositivity_type_exposure_belen <- ffi_total %>%
   #ggsci::scale_fill_lancet() +
   innovar::scale_fill_innova("npr") +
   labs(
-    title = str_wrap("Serological results by plasmodium type of malaria in the Belen District", 100),
+    #title = str_wrap("Serological results by plasmodium type of malaria in the Belen District", 100),
     x = "Villages",
     y = "Percentage"
   ) +
@@ -673,7 +682,9 @@ malaria_seropositivity_type_exposure_belen <- ffi_total %>%
     strip.text = ggtext::element_markdown(
       face = "bold",
       size = 11
-    )
+    ),
+    plot.tag.position = c(0, 1),
+    plot.tag = element_text(face = 'bold')
   )
 
 malaria_seropositivity_type_exposure_belen
@@ -751,7 +762,7 @@ malaria_seropositivity_type_exposure_indiana <- ffi_total %>%
   #ggsci::scale_fill_lancet() +
   innovar::scale_fill_innova("npr") +
   labs(
-    title = str_wrap("Serological results by plasmodium type of malaria in the Indiana District", 100),
+    #title = str_wrap("Serological results by plasmodium type of malaria in the Indiana District", 100),
     x = "Villages",
     y = "Percentage"
   ) +
@@ -774,7 +785,10 @@ malaria_seropositivity_type_exposure_indiana <- ffi_total %>%
     legend.title = element_text(
       face = "bold",
       size = 11
-    )
+    ),
+    plot.tag.position = c(0.015, 1),
+    plot.margin = margin(0, 0, 0, 0.5, "cm"),
+    plot.tag = element_text(face = 'bold')
   )
 
 malaria_seropositivity_type_exposure_indiana
@@ -818,56 +832,43 @@ ggsave(
 malaria_seropositivity_type_exposure_belen <- 
   malaria_seropositivity_type_exposure_belen + 
   labs(
-    title = "Belen",
+    #title = "Belen",
     y = NULL
-  ) +
-  theme(
-    plot.title = element_text(hjust = 0.5,
-                              face = "bold")
-  ) 
+  )
 
 malaria_seropositivity_type_exposure_indiana <- 
   malaria_seropositivity_type_exposure_indiana + 
   labs(
-    title = "Indiana",
+    #title = "Indiana",
     y = NULL,
     x = NULL
-  ) +
-  theme(
-    plot.title = element_text(hjust = 0.5,
-                              face = "bold")
   ) 
 ```
 
 ```{r}
 malaria_seropositivity_type_exposure <- 
   malaria_seropositivity_type_exposure_belen + malaria_seropositivity_type_exposure_indiana +
-  plot_layout(guides = "collect") # une las guías de los dos gráficos
-  # plot_annotation(
-  #   title = "Malaria Seropositivity by type of exposure and plasmodium",
-  #   theme = theme(
-  #     plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
-  #   )
-  # )
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "a") 
 ```
 
 ```{r eval = FALSE}
 ggsave("02_output/plots/Fig 4. Malaria Seropositivity by type of exposure and plasmodium.png",
        malaria_seropositivity_type_exposure,
-       dpi = 400,
+       dpi = 300,
        width = 15,
        height = 8,
        device = grDevices::png)
 
 ggsave("02_output/plots/Fig 4. Malaria Seropositivity by type of exposure and plasmodium.eps",
        malaria_seropositivity_type_exposure,
-       dpi = 400,
+       dpi = 300,
        width = 15,
        height = 8)
 
 ggsave("02_output/plots/Fig 4. Malaria Seropositivity by type of exposure and plasmodium.tiff",
        malaria_seropositivity_type_exposure,
-       dpi = 400,
+       dpi = 300,
        width = 15,
        height = 8)
 ```
@@ -1141,7 +1142,7 @@ ffi_shp2 <- Peru %>%
 
 ```{r}
 # Función de trazado
-create_plot <- function(data, title, variable) {
+create_plot <- function(data, title = NULL, variable) {
   data %>% 
     filter({{ variable }} == "Not significant") %>% 
     ggplot() +
@@ -1186,20 +1187,26 @@ create_plot <- function(data, title, variable) {
       ),
       panel.border = element_rect(colour = "black",
                                   fill=NA), # añade borde al panel
-      axis.line = element_line(colour = "black")
+      axis.line = element_line(colour = "black"),
+      plot.tag = element_text(face = 'bold')
     )
 }
 
 # Crear gráficos
 plot1 <- w.getis_sf %>% 
   filter(type_plasmodium == "prevalence_pf_recent") %>% 
-  create_plot(title = bquote('Seroprevalence '* 'Recent '* italic('P. falciparum')),
-              variable = LISA_clust)
+  create_plot(variable = LISA_clust) +
+  theme(
+    plot.tag.position = c(0, 1.05)
+  )
 
 plot2 <- w.getis_sf %>% 
   filter(type_plasmodium == "prevalence_pv_recent") %>% 
-  create_plot(title = bquote('Seroprevalence '* 'Recent '* italic('P. vivax')),
-              variable = LISA_clust)
+  create_plot(variable = LISA_clust) +
+  theme(
+    plot.tag.position = c(0.015, 1.05),
+    plot.margin = margin(0, 0, 0, 0.5, "cm")
+  )
 
 # Combinar gráficos
 combined_plot <- plot1 + plot2 +
@@ -1280,13 +1287,19 @@ ggsave("02_output/plots/Fig 7. Spatial Analysis for Historical Exposure.png",
 # Crear gráficos
 plot3 <- w.getis_sf %>% 
   filter(type_plasmodium == "prevalence_pf_historic") %>% 
-  create_plot(title = bquote('Seroprevalence '* 'Historical '* italic('P. falciparum')),
-              variable = LISA_clust)
+  create_plot(variable = LISA_clust) +
+  theme(
+    plot.tag.position = c(0, 1.05),
+    plot.margin = margin(0, 0, 0, 0, "cm")
+  )
 
 plot4 <- w.getis_sf %>% 
   filter(type_plasmodium == "prevalence_pv_historic") %>% 
-  create_plot(title = bquote('Seroprevalence '* 'Historical '* italic('P. vivax')),
-              variable = LISA_clust)
+  create_plot(variable = LISA_clust) +
+  theme(
+    plot.tag.position = c(0.015, 1.05),
+    plot.margin = margin(0, 0, 0, 0.5, "cm")
+  )
 
 # Combinar gráficos
 combined_plot2 <- plot3 + plot4 +
@@ -1310,26 +1323,21 @@ ggsave("02_output/plots/Fig 5. Spatial Analysis for Historic Exposure raster.png
 
 ```{r}
 combined_plot_total <- (plot1 + plot2) / (plot3 + plot4) +
-  plot_layout(guides = "collect")  # une las guías de los dos gráficos
-  # plot_annotation(
-  #   title = "Spatial Analysis for Type of Exposure",
-  #   theme = theme(
-  #     plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
-  #   )
-  # )
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "a")
 ```
 
 ```{r eval = FALSE}
 ggsave("02_output/plots/Fig 5. Spatial Analysis for Type of Exposure raster.png",
        combined_plot_total,
-       dpi = 400,
+       dpi = 300,
        width = 12,
        height = 14,
        device = grDevices::png)
 
 ggsave("02_output/plots/Fig 5. Spatial Analysis for Type of Exposure raster.tiff",
        combined_plot_total,
-       dpi = 400,
+       dpi = 300,
        width = 12,
        height = 14)
 ```
@@ -1354,8 +1362,8 @@ plot_ratio_lisa_communities_pf_belen <- ffi_w.getis %>%
   ggh4x::facet_grid2(ffi_is_district ~ type_plasmodium,
                      labeller = labeller(
                        type_plasmodium = c(
-                         prevalence_pf_historic = "*P. Falciparum* Historical",
-                         prevalence_pf_recent = "*P. Falciparum* Recent"
+                         prevalence_pf_historic = "Historical Exposure",
+                         prevalence_pf_recent = "Recent Exposure"
                        )
                      )) +
   innovar::scale_fill_innova("npr",
@@ -1371,7 +1379,10 @@ plot_ratio_lisa_communities_pf_belen <- ffi_w.getis %>%
     strip.text = ggtext::element_markdown(),
     axis.title.x = element_blank(),
     axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
+    axis.ticks.x = element_blank(),
+    plot.tag = element_text(face = 'bold'),
+    plot.tag.position = c(0, 0.98),
+    plot.margin = margin(0, 0, 0, 0, "cm")
   )
 
 plot_ratio_lisa_communities_pf_belen
@@ -1395,8 +1406,8 @@ plot_ratio_lisa_communities_pv_belen <- ffi_w.getis %>%
   ggh4x::facet_grid2(ffi_is_district ~ type_plasmodium,
                      labeller = labeller(
                        type_plasmodium = c(
-                         prevalence_pv_historic = "*P. Vivax* Historical",
-                         prevalence_pv_recent = "*P. Vivax* Recent"
+                         prevalence_pv_historic = "Historical Exposure",
+                         prevalence_pv_recent = "Recent Exposure"
                        )
                      )) +
   innovar::scale_fill_innova("npr",
@@ -1416,7 +1427,10 @@ plot_ratio_lisa_communities_pv_belen <- ffi_w.getis %>%
       size = 9,
       lineheight = 0.85
     ),
-    strip.text = ggtext::element_markdown() # Esto permitirá interpretar el markdown en las etiquetas de las facetas.
+    strip.text = ggtext::element_markdown(),
+    plot.tag = element_text(face = 'bold'),
+    plot.tag.position = c(0, 0.98),
+    plot.margin = margin(0, 0, 0, 0, "cm")
   )
 
 plot_ratio_lisa_communities_pv_belen
@@ -1439,8 +1453,8 @@ plot_ratio_lisa_communities_pf_indiana <- ffi_w.getis %>%
   ggh4x::facet_grid2(ffi_is_district ~ type_plasmodium,
                      labeller = labeller(
                        type_plasmodium = c(
-                         prevalence_pf_historic = "*P. Falciparum* Historical",
-                         prevalence_pf_recent = "*P. Falciparum* Recent"
+                         prevalence_pf_historic = "Historical Exposure",
+                         prevalence_pf_recent = "Recent Exposure"
                        )
                      )) +
   innovar::scale_fill_innova("npr",
@@ -1456,7 +1470,10 @@ plot_ratio_lisa_communities_pf_indiana <- ffi_w.getis %>%
     strip.text = ggtext::element_markdown(),
     axis.title.x = element_blank(),
     axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
+    axis.ticks.x = element_blank(),
+    plot.tag = element_text(face = 'bold'),
+    plot.tag.position = c(0, 0.98),
+    plot.margin = margin(0, 0, 0, 0, "cm")
   )
 
 plot_ratio_lisa_communities_pf_indiana
@@ -1480,8 +1497,8 @@ plot_ratio_lisa_communities_pv_indiana <- ffi_w.getis %>%
   ggh4x::facet_grid2(ffi_is_district ~ type_plasmodium,
                      labeller = labeller(
                        type_plasmodium = c(
-                         prevalence_pv_historic = "*P. Vivax* Historical",
-                         prevalence_pv_recent = "*P. Vivax* Recent"
+                         prevalence_pv_historic = "Historical Exposure",
+                         prevalence_pv_recent = "Recent Exposure" 
                        )
                      )) +
   innovar::scale_fill_innova("npr",
@@ -1501,7 +1518,10 @@ plot_ratio_lisa_communities_pv_indiana <- ffi_w.getis %>%
       size = 9,
       lineheight = 0.85
     ),
-    strip.text = ggtext::element_markdown() # Esto permitirá interpretar el markdown en las etiquetas de las facetas.
+    strip.text = ggtext::element_markdown(),
+    plot.tag = element_text(face = 'bold'),
+    plot.tag.position = c(0, 0.98),
+    plot.margin = margin(0, 0, 0, 0, "cm")
   )
 
 plot_ratio_lisa_communities_pv_indiana
@@ -1511,12 +1531,7 @@ plot_ratio_lisa_communities_pv_indiana
 combined_plot_lisa_communities <- plot_ratio_lisa_communities_pf_belen / plot_ratio_lisa_communities_pv_belen /
   plot_ratio_lisa_communities_pf_indiana / plot_ratio_lisa_communities_pv_indiana +
   plot_layout(guides = "collect") + # une las guías de los dos gráficos
-  plot_annotation(
-    #title = "Spatial Analysis by Villages",
-    theme = theme(
-      plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
-    )
-  )
+  plot_annotation(tag_levels = "a")
 ```
 
 
