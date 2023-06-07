@@ -1,0 +1,177 @@
+---
+title: "API MAPs"
+output: html_document
+date: "2023-02-27"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{css, echo=FALSE}
+pre {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+pre[class] {
+  max-height: 100px;
+}
+
+.scroll-100 {
+  max-height: 100px;
+  overflow-y: auto;
+  background-color: inherit;
+}
+```
+
+
+```{r, message=F, error=F, warning=F, class.output="scroll-100"}
+library(readxl)
+library(tidyverse)
+library(epiDisplay)
+library(treemapify)
+library(ggpubr)
+library(viridis)
+library(colorspace)
+library(sf)
+library(ggrepel)
+library(scales)
+library(waffle)
+library(ggsflabel) #devtools::install_github("yutannihilation/ggsflabel")
+
+
+NOTI <- "01_data/raw/NOTI_SEM03_2019_sesync_v2.xlsx"
+inei <- "01_data/raw/loreto_inei.csv"
+```
+
+
+# Base de datos del NOTI
+```{r, message=F, error=F, warning=F, class.output="scroll-100"}
+df <- read_excel(NOTI) #Lectura de la base del NOTI
+
+#Transformación de fechas
+df$Date <- as.Date(df$FECHA_NOT,
+                    "%Y/%m/%d")
+
+df$Month <- as.Date(cut(df$Date,
+  breaks = "month"))
+
+df$Week <- as.Date(cut(df$Date,
+  breaks = "week",
+  start.on.monday = FALSE)) 
+
+df$Yearly <- as.Date(cut(df$Date,
+  breaks = "year",
+  start.on.monday = FALSE)) 
+
+```
+
+```{r, message=F, error=F, warning=F, class.output="scroll-100"}
+cases_df <- df %>% 
+  dplyr::filter(DEPARTAM =="LORETO") %>%  
+  dplyr::filter(ANO >= 2014) 
+```
+
+
+
+```{r}
+df_inei <- read.csv(inei)
+
+df1 <-  cases_df %>% 
+  group_by(ANO,DISTRITO) %>%
+  summarise(n = n()) %>%
+  
+  merge(df_inei, by.x="DISTRITO", by.y="District",all=T) %>%
+  
+  ungroup() %>%
+  complete(ANO,
+           fill= list(n = 0),
+           nesting(DISTRITO,pop2017)) %>%
+  
+  filter(ANO==2017) %>%
+  group_by(DISTRITO) %>%
+  summarise(malaria = sum(n),
+            pop_fixed=pop2017) %>%
+  ungroup() %>%
+  mutate(pop=mean(pop_fixed),
+         api = ((malaria*1000)/pop),
+         api_fixed = ((malaria*1000)/pop_fixed),
+         
+         api_cat = cut(api, 
+                       breaks=c(-Inf, 100, 250, 450, Inf), 
+                       labels=c("Very Low","Low","Moderate","High")),
+         
+         api_cat_fixed = cut(api_fixed, 
+                       breaks=c(-Inf, 100, 250, 450, Inf), 
+                       labels=c("Very Low","Low","Moderate","High"))
+         
+  )
+
+
+sp <- st_read("01_data/raw/distritos/", quiet = TRUE) %>%
+  dplyr::filter(NOMBDEP == "LORETO") %>% rename(DISTRITO=NOMBDIST)
+
+df_map <-merge(df1,sp, by="DISTRITO",all=T) 
+```
+
+```{r}
+# npr <- colorRampPalette(c("#03595C", "#58C3B0",  "#E7E2BF","#EFA255", "#DC4326"))
+# npr2 <- colorRampPalette(c("#E7E2BF", "#58C3B0","#03595C"  ))
+#npr <- colorRampPalette(c("#03595C", "#58C3B0"))
+
+```
+
+## Mapa 1 - (Malaria * 1mil) / Promedio de población por distrito [2017]
+```{r}
+map1_con <- ggplot(df_map) + 
+  geom_sf(data=df_map,aes(fill=api,geometry=geometry))+
+  # scale_fill_distiller(name="API (2017)", na.value = "black", limits=c(0,1100),
+  #                      #palette =  npr(2), 
+  #                      direction=1, breaks=c(0,10,100,1000),
+  #                      #breaks = pretty_breaks(n=5),
+  #                      trans=scales::pseudo_log_trans(base = 10)) +
+  innovar::scale_fill_innova("npr", discrete = FALSE, na.value = "black",
+                             name="API (2017)", limits=c(0,1100), breaks=c(0,10,100,1000),
+                             trans=scales::pseudo_log_trans(base = 10)) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),axis.text.y = element_blank(),
+      axis.ticks.x=element_blank(),
+      axis.ticks.y=element_blank(), 
+  panel.border = element_blank(),
+   axis.line = element_blank())+
+  xlab("") + ylab("")
+map1_con
+```
+
+```{r}
+map2_con <- ggplot(df_map) + 
+  geom_sf(data=df_map,aes(fill=api_fixed,geometry=geometry))+
+  # scale_fill_distiller(name="API (2017)", na.value = "black", limits=c(0,1100),
+  #                      #palette =  npr(2), 
+  #                      direction=1, breaks=c(0,10,100,1000),
+  #                      #breaks = pretty_breaks(n=5),
+  #                      trans=scales::pseudo_log_trans(base = 10)) +
+  innovar::scale_fill_innova("npr", discrete = FALSE, na.value = "black",
+                             name="API (2017)", limits=c(0,1100), breaks=c(0,10,100,1000),
+                             trans=scales::pseudo_log_trans(base = 10)) +
+  theme_classic() +
+     theme(axis.text.x = element_blank(),axis.text.y = element_blank(),
+      axis.ticks.x=element_blank(),
+      axis.ticks.y=element_blank(), 
+  panel.border = element_blank(),
+   axis.line = element_blank())+
+  xlab("") + ylab("")
+map2_con
+```
+
+
+
+```{r}
+ggsave("02_output/plots/map1_continuous.png",map1_con, width = 6, height = 6, units = "in", dpi = 300)
+ggsave("02_output/plots/map2_continuous.png",map2_con, width = 6, height = 6, units = "in", dpi = 300)
+ggsave("02_output/plots/map1_continuous.svg",map1_con, width = 6, height = 6, units = "in", dpi = 300)
+ggsave("02_output/plots/map2_continuous.svg",map2_con, width = 6, height = 6, units = "in", dpi = 300)
+ggsave("02_output/plots/map1_continuous.tiff",map2_con, width = 6, height = 6, units = "in", dpi = 300)
+ggsave("02_output/plots/map2_continuous.tiff",map2_con, width = 6, height = 6, units = "in", dpi = 300)
+
+```
+
