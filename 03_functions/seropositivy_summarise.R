@@ -2,7 +2,7 @@ library(rlang)
 
 seropositivy_summarise <- function(data, type, variable, ...) {
   if (type == "4malaria") {
-    ffi_total %>%
+    data %>%
       drop_na(pf_recent:pv_historic, {{ variable }}, ...) %>%
       pivot_longer(
         cols = pf_recent:pv_historic,
@@ -29,7 +29,7 @@ seropositivy_summarise <- function(data, type, variable, ...) {
       summarise(result_malaria = mean(result_malaria))  %>%
       ungroup()
   } else if (type == "typeofmalaria" ) {
-    ffi_total %>%
+    data %>%
       drop_na(pf_exposure, pv_exposure, {{ variable }}, ...) %>%
       pivot_longer(
         cols = pv_exposure:pf_exposure,
@@ -54,7 +54,7 @@ seropositivy_summarise <- function(data, type, variable, ...) {
       summarise(result_exposure = mean(result_exposure)) %>%
       ungroup()
   } else if (type == "timeofmalaria") {
-    ffi_total %>%
+    data %>%
       drop_na(recent_exposure, historical_exposure, 
               {{ variable }}, ...) %>%
       pivot_longer(

@@ -1,0 +1,856 @@
+---
+title: "Descriptive analysis"
+date: "`r Sys.Date()`"
+output: 
+  rmdformats::downcute:
+    self_contained: true
+    highlight: kate
+    toc_depth: 3
+    default_style: dark
+    code_folding: hide
+    code_download: true
+    highlight_downlit: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+## Global options
+knitr::opts_chunk$set(
+  cache = TRUE,
+  warnings = FALSE,
+  messages = FALSE
+)
+
+library(tidyverse)
+library(sf)
+library(ggspatial)
+library(patchwork)
+```
+
+# Import data
+
+```{r}
+ffi_total <- readRDS(file = "01_data/processed/ffi_total.rds")
+ffi_household <- readRDS(file = "01_data/processed/ffi_household.rds")
+ffi_household_gps <- readRDS(file = "01_data/processed/ffi_household_gps.rds")
+data_malaria_long <- readRDS(file = "01_data/processed/data_malaria_long.rds")
+noti <- readxl::read_excel("01_data/raw/NOTI_SEM03_2019_sesync_v2.xlsx")
+noti_inei <- readr::read_csv("01_data/raw/loreto_inei.csv")
+```
+
+# Figures
+
+## Figure 1 - B
+
+```{r}
+data_malaria_long_f <- data_malaria_long %>% 
+  filter(!(malaria == "Confirmed P. Vivax" & `Date by month` < lubridate::ymd("2009-01-01"))) %>% 
+  mutate(
+    `Date by month` = lubridate::ceiling_date(`Date by month`,
+                                              unit = "year")
+  ) %>% 
+  group_by(District, malaria, `Date by month`) %>%
+  summarise(cases = sum(cases)) %>% 
+  ungroup() %>% 
+  mutate(
+    cases = case_when(
+      District == "BELEN" ~ (cases/69608)*1000,
+      District == "INDIANA" ~ (cases/11648)*1000,
+    ),
+    District = str_to_title(District)
+  )
+```
+
+```{r}
+max_cases_malaria <- data_malaria_long_f %>% 
+  slice_max(cases, n = 1,
+            by = malaria)
+max_cases_malaria
+```
+
+
+```{r dpi = 300, fig.align='center'}
+fig1_malaria_api_belen_indiana_A_1 <- data_malaria_long_f %>% 
+  filter(
+    malaria == "Confirmed P. Falciparum"
+  ) %>% 
+  ggplot(aes(x = `Date by month`, y = cases,
+             color = District)) +
+  geom_line(linewidth = 0.8) +
+  scale_y_continuous(
+    limits = c(0, max(max_cases_malaria$cases))
+  ) +
+  labs(
+    title = bquote('Confirmed ' * italic('P. Falciparum')),
+    x = NULL,
+    y = "API"
+  ) +
+  innovar::scale_color_innova("npr") +
+  theme_minimal(base_size = 10) +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5)
+  )
+
+fig1_malaria_api_belen_indiana_A_2 <- data_malaria_long_f %>% 
+  filter(
+    malaria == "Confirmed P. Vivax"
+  ) %>% 
+  ggplot(aes(x = `Date by month`, y = cases,
+             color = District)) +
+  geom_line(linewidth = 0.8) +
+  scale_y_continuous(
+    limits = c(0, max(max_cases_malaria$cases))
+  ) +
+  labs(
+    title = bquote('Confirmed ' * italic('P. Vivax')),
+    x = NULL,
+    y = NULL
+  ) +
+  innovar::scale_color_innova("npr") +
+  theme_minimal(base_size = 10) +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5)
+  )
+```
+
+```{r}
+fig1_malaria_api_belen_indiana_A <- 
+  fig1_malaria_api_belen_indiana_A_1 +
+  fig1_malaria_api_belen_indiana_A_2 +
+  plot_layout(guides='collect') &
+  theme(legend.position='bottom')
+```
+
+
+```{r eval=FALSE}
+ggsave("02_output/plots/Fig 1. Malaria Cases in Indiana and Belen, 2000-2021 - A.png", 
+       fig1_malaria_api_belen_indiana_A,
+       width = 6,
+       height = 4.5,
+       scale = 0.85,
+       dpi = 300,
+       bg = "white")
+```
+
+```{r dpi = 300, fig.align='center'}
+fig1_malaria_api_belen_indiana_B <- data_malaria_long %>% 
+  filter(!(malaria == "Confirmed P. Vivax" & `Date by month` < lubridate::ymd("2009-01-01"))) %>% 
+  mutate(
+    `Date by month` = lubridate::ceiling_date(`Date by month`,
+                                              unit = "year")
+  ) %>% 
+  group_by(District, malaria, `Date by month`) %>%
+  summarise(cases = sum(cases)) %>% 
+  ungroup() %>% 
+  mutate(
+    cases = case_when(
+      District == "BELEN" ~ (cases/69608)*1000,
+      District == "INDIANA" ~ (cases/11648)*1000,
+    )
+  ) %>% 
+  ggplot(aes(x = `Date by month`, y = cases,
+             color = District)) +
+  geom_line(linewidth = 0.8) +
+  facet_wrap(vars(malaria)) +
+  labs(
+    x = NULL,
+    y = "API"
+  ) +
+  innovar::scale_color_innova("npr") +
+  geom_hline(yintercept=100, linetype="dashed", 
+                color = "black", linewidth = 2) +
+  annotate("text", label = "Very low \ntransmission",
+           y = 80, x = lubridate::ymd("2019-01-01")) +
+  theme_minimal()
+
+fig1_malaria_api_belen_indiana_B
+```
+
+
+```{r eval=FALSE}
+ggsave("02_output/plots/Fig 1. Malaria Cases in Indiana and Belen, 2000-2021 - B.png", 
+       fig1_malaria_api_belen_indiana_B,
+       width = 8,
+       height = 5,
+       dpi = 300,
+       bg = "white")
+```
+
+## Combined plots: Figure 1
+
+```{r}
+map1 <- cowplot::ggdraw() + 
+  cowplot::draw_image(
+    png::readPNG("01_data/processed/mapa.png")
+  ) +
+  theme(plot.tag.position = c(0, 1)) +
+  plot_annotation(tag_levels = 'a')
+
+fig1_A <- cowplot::ggdraw() + 
+  cowplot::draw_image(
+    png::readPNG("02_output/plots/Fig 1. Malaria Cases in Indiana and Belen, 2000-2021 - A.png")
+  ) +
+  theme(plot.tag.position = c(0.03, 1),
+        plot.margin = margin(0, 0, 0, 0.5, "cm")) +
+  plot_annotation(tag_levels = 'a') 
+```
+
+```{r}
+fig1_malaria <- map1 + fig1_A +
+  theme(plot.tag = element_text(face = 'bold'))
+fig1_malaria
+```
+
+
+```{r}
+ggsave("02_output/plots/Fig 1. Study Area and Malaria Cases in Indiana and Belen, 2000-2021.png", 
+       fig1_malaria,
+       width = 13,
+       height = 5,
+       dpi = 300,
+       bg = "white")
+
+ggsave("02_output/plots/Fig 1. Study Area and Malaria Cases in Indiana and Belen, 2000-2021.tiff", 
+       fig1_malaria,
+       width = 13,
+       height = 5,
+       dpi = 300,
+       bg = "white")
+```
+
+
+## Figure 2
+
+Geometries for Indiana & Belen:
+
+```{r}
+data("Peru", package = "innovar")
+
+crop_coordinates <- Peru %>% 
+  filter(dep == "LORETO",
+         distr %in% c("INDIANA",
+                      "BELEN")) %>% 
+  st_bbox()
+
+ffi_shp <- Peru %>% 
+  st_crop(crop_coordinates)
+```
+
+```{r}
+crop_coordinates2 <- crop_coordinates
+crop_coordinates2[2] <- crop_coordinates2[2] + 0.20
+crop_coordinates2[3] <- crop_coordinates2[3] - 0.18
+
+ffi_shp2 <- Peru %>% 
+  st_crop(crop_coordinates2)
+
+iquitos_centro <- tibble(
+  "ffi_h_health_facility_name" = "Hospital Regional de Loreto",
+  Longitude = -73.25385902080906,
+  Latitude = -3.7264060164148716,
+) %>% 
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326)
+```
+
+```{r}
+colorPalette <- hcl.colors(17, palette = "zissou")
+
+plot_recent_exposure <- ffi_household_gps %>% 
+  filter(recent_exposure < 0.45) %>% 
+  ggplot() +
+  geom_sf(data = ffi_shp2, color = NA) +
+  annotation_map_tile(type = "cartolight", zoom = 12) +
+  geom_sf(aes(col = recent_exposure,
+              shape = "Households"), 
+          size = 2,
+          alpha = 0.4) +
+  geom_sf(data = ffi_household_gps %>% 
+            filter(recent_exposure >= 0.45),
+          aes(col = recent_exposure,
+              shape = "Households"), 
+          size = 2) +
+  geom_sf(data = ffi_shp2 %>%
+            filter(distr %in% c("INDIANA", "BELEN")),
+          linewidth = 0.5, fill = NA,
+          linetype = "dashed") +
+  geom_sf(data = iquitos_centro,
+          aes(shape = "Loreto Regional Hospital"),
+          size = 3) +
+  scale_color_gradientn(colors = colorPalette) +
+  scale_shape_manual(values = c(
+    "Households" = 19,
+    "Loreto Regional Hospital" = 17
+  )) + 
+  labs(
+    #title = "Recent Exposure",
+    color = "Household Seropositivity \nRate",
+    shape = NULL
+  ) +
+  guides(
+    color = guide_colorbar(order = 1), 
+    shape = guide_legend(order = 2)  
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    legend.title = element_text(
+      face = "bold"
+    ),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5
+    ),
+    strip.text = element_text(
+      face = "bold"
+    ),
+    panel.border = element_rect(colour = "black",
+                                fill = NA), 
+    axis.line = element_line(colour = "black"),
+    plot.tag.position = c(0, 1),
+    plot.tag = element_text(face = 'bold')
+  ) 
+
+plot_historical_exposure <- ffi_household_gps %>% 
+  filter(historical_exposure < 0.45) %>% 
+  ggplot() +
+  geom_sf(data = ffi_shp2, color = NA) +
+  annotation_map_tile(type = "cartolight", zoom = 12) +
+  geom_sf(aes(col = historical_exposure,
+              shape = "Households"), 
+          size = 2,
+          alpha = 0.4) +
+  geom_sf(data = ffi_household_gps %>% 
+            filter(historical_exposure >= 0.45),
+          aes(col = historical_exposure,
+              shape = "Households"), 
+          size = 2) +
+  geom_sf(data = ffi_shp2 %>%
+            filter(distr %in% c("INDIANA", "BELEN")),
+          linewidth = 0.5, fill = NA,
+          linetype = "dashed") +
+  geom_sf(data = iquitos_centro,
+          aes(shape = "Loreto Regional Hospital"),
+          size = 3) +
+  scale_color_gradientn(colors = colorPalette) +
+  scale_shape_manual(values = c(
+    "Households" = 19,
+    "Loreto Regional Hospital" = 17
+  )) +
+  labs(
+    #title = "Historical Exposure",
+    color = "Household Seropositivity \nRate",
+    shape = NULL
+  ) +
+  guides(
+    color = guide_colorbar(order = 1),
+    shape = guide_legend(order = 2)  
+  ) +
+  theme_classic(base_size = 12) +
+    theme(
+      legend.title = element_text(
+        face = "bold"
+      ),
+      plot.title = element_text(
+        face = "bold",
+        hjust = 0.5
+      ),
+      strip.text = element_text(
+        face = "bold"
+      ),
+      panel.border = element_rect(colour = "black",
+                                  fill = NA),
+      axis.line = element_line(colour = "black"),
+      plot.tag.position = c(0, 1),
+      plot.margin = margin(0, 0, 0, 0.5, "cm"),
+      plot.tag = element_text(face = 'bold')
+    ) 
+```
+
+```{r}
+combined_plot_exposure <- plot_recent_exposure + plot_historical_exposure +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = 'a') 
+```
+
+```{r eval = FALSE}
+ggsave("02_output/plots/Fig 2. Exposure by households with raster.png",
+       combined_plot_exposure,
+       dpi = 300,
+       width = 12,
+       height = 6.2,
+       device = grDevices::png)
+```
+
+```{r eval = FALSE}
+ggsave("02_output/plots/Fig 2. Exposure by households with raster.tiff",
+       combined_plot_exposure,
+       dpi = 300,
+       width = 12,
+       height = 6.2)
+```
+
+## Figure 5
+
+### Pre-processing
+
+```{r}
+ffi_prevalence_by_household <- ffi_total %>% 
+  mutate(
+    across(
+      c(pf_recent:pv_historic, 
+        recent_exposure, historical_exposure),
+      ~ case_when(
+        . == "Positive" ~ 1,
+        TRUE ~ 0
+      )
+    )
+  ) %>% 
+  group_by(
+    ffi_is_district,
+    ffi_is_health_facility_name,
+    ffi_is_community, 
+    ffi_is_cod_com,
+    ffi_is_cod_household
+  ) %>% 
+  summarise(
+    examined = n(),
+    across(
+      c(pf_recent:pv_historic, 
+        recent_exposure, historical_exposure),
+      sum
+    )
+  ) %>% 
+  ungroup() %>% 
+  mutate(
+    across(
+      c(pf_recent:pv_historic, 
+        recent_exposure, historical_exposure),
+      ~ ./examined,
+      .names = "prevalence_{.col}"
+    )
+  ) %>% 
+  left_join(
+    ffi_household %>% 
+      dplyr::select(ffi_is_community = ffi_h_community,
+             ffi_is_cod_household = ffi_h_code_household,
+             ffi_gps_long, ffi_gps_lat)
+  ) %>% 
+  mutate(
+    cod_id = paste0(ffi_is_cod_com, ffi_is_cod_household)
+  )
+```
+
+
+### Spatial Analysis
+
+```{r}
+library(spdep)
+```
+
+```{r}
+ffi_prevalence_by_household_sf <- ffi_prevalence_by_household %>% 
+  st_as_sf(
+    coords = c("ffi_gps_long", "ffi_gps_lat"),
+    crs = 4326
+  ) 
+```
+
+```{r}
+ffi_prevalence_kmeans <- ffi_prevalence_by_household_sf %>% 
+  group_nest(
+    ffi_is_district,
+    #ffi_is_community
+    #ffi_is_health_facility_name
+  ) %>% 
+  mutate(
+    ffi_coords = map(
+      data, 
+      ~ sp::coordinates(as(., "Spatial"))
+    ),
+    neigh_nb = map2(
+      data, ffi_coords,
+      ~ knn2nb(
+          knearneigh(
+            .y,
+            k = 1,
+            longlat = TRUE
+          ),
+          row.names = .x$cod_id
+        )
+    ),
+    neigh_kd1 = pmap(
+      list(ffi_coords,
+           neigh_nb,
+           data),
+      ~ dnearneigh(
+        ..1,
+        d1 = 0, 
+        d2 = max(unlist(nbdists(..2, ..1))), 
+        row.names = ..3$cod_id
+      )
+    ),
+    self = map(
+      neigh_kd1,
+      ~ nb2listw(
+        .,
+        style = "W", 
+        zero.policy = TRUE
+      )
+    )
+  )
+```
+
+```{r}
+breaks <- c(-Inf, -2.58, -1.96, 
+            -1.65, 1.65, 1.96,
+            2.58, Inf)
+labels <- c("Cold spot: 99% confidence", 
+            "Cold spot: 95% confidence", 
+            "Cold spot: 90% confidence", 
+            "Not significant",
+            "Hot spot: 90% confidence",
+            "Hot spot: 95% confidence",
+            "Hot spot: 99% confidence")
+
+ffi_w.getis <- ffi_prevalence_kmeans %>% 
+  mutate(
+    data_nosf = map(
+      data,
+      ~ .x %>% 
+        st_set_geometry(NULL) %>% 
+        pivot_longer(
+          cols = c(prevalence_pf_recent:prevalence_historical_exposure),
+          names_to = "type_plasmodium",
+          values_to = "prevalence"
+        ) %>% 
+        group_nest(type_plasmodium,
+                   .key = "data_nosf")
+    )
+  ) %>% 
+  unnest(data_nosf) %>% 
+  mutate(
+    LISA = map2(data_nosf,
+               self,
+               ~ localG(.x$prevalence, .y)),
+    LISA_clust = map(LISA,
+                     ~ cut(., include.lowest = TRUE,
+                           breaks = breaks, 
+                           labels = labels)),
+    LISA_label_orig = map(LISA,
+                          ~ attributes(.)$cluster),
+    LISA = map(LISA, as.numeric)
+  ) %>% 
+  select(
+    ffi_is_district,
+    #ffi_is_community,
+    #ffi_is_health_facility_name,
+    type_plasmodium:LISA_label_orig
+  ) %>% 
+  unnest(cols = c(data_nosf, LISA, 
+                  LISA_clust, LISA_label_orig))
+```
+
+```{r}
+ffi_w.getis <- ffi_w.getis %>% 
+  left_join(
+    ffi_household %>% 
+      select(
+        ffi_is_district = ffi_h_district,
+        ffi_is_cod_com = ffi_h_code_community,
+        ffi_is_cod_household = ffi_h_code_household,
+        ffi_gps_lat, 
+        ffi_gps_long
+      )
+  )
+
+w.getis_sf <- ffi_w.getis %>% 
+  st_as_sf(coords = c("ffi_gps_long", 
+                      "ffi_gps_lat"),
+           crs = 4326,
+           remove = FALSE)
+```
+
+
+### Ploting - Figure 5
+
+```{r}
+data("Peru", package = "innovar")
+
+crop_coordinates <- Peru %>% 
+  filter(dep == "LORETO",
+         distr %in% c("INDIANA",
+                      "BELEN")) %>% 
+  st_bbox()
+
+ffi_shp <- Peru %>% 
+  st_crop(crop_coordinates)
+```
+
+```{r}
+crop_coordinates2 <- crop_coordinates
+crop_coordinates2[2] <- crop_coordinates2[2] + 0.20
+crop_coordinates2[3] <- crop_coordinates2[3] - 0.18
+
+ffi_shp2 <- Peru %>% 
+  st_crop(crop_coordinates2)
+```
+
+```{r}
+# Función de trazado
+create_plot <- function(data, title = NULL, variable) {
+  data %>% 
+    filter({{ variable }} == "Not significant") %>% 
+    ggplot() +
+    geom_sf(data = ffi_shp2, color = NA) + 
+    annotation_map_tile(type = "cartolight", zoom = 12) +
+    geom_sf(aes(col = {{ variable }}), 
+            alpha = 0.2,
+            size = 1.7) +
+    geom_sf(data = data %>% 
+              filter({{ variable }} != "Not significant"),
+            aes(col = {{ variable }}), 
+            alpha = 1,
+            size = 2) +
+    geom_sf(data = ffi_shp2 %>%
+              filter(distr %in% c("INDIANA", "BELEN")),
+            linewidth = 0.5, fill = NA,
+            linetype = "dashed") +
+    scale_color_manual(
+      values = c("#03595c", "#5dafa6", "#87cdb5",
+                 "#D3D3D3",
+                 "#efc38f", "#e88245", "#e2634b"),
+      drop = FALSE
+    ) +
+    scale_alpha_manual(
+      values = c(rep(1, 3), 0.2, rep(1, 3)),
+      drop = FALSE
+    ) +
+    labs(color = "Local Indicator of \nSpatial Association",
+         alpha = "Local Indicator of \nSpatial Association",
+         title = title) +
+    theme_classic(base_size = 12) +
+    theme(
+      legend.title = element_text(
+        face = "bold"
+      ),
+      plot.title = element_text(
+        face = "bold",
+        hjust = 0.5
+      ),
+      strip.text = element_text(
+        face = "bold"
+      ),
+      panel.border = element_rect(colour = "black",
+                                  fill=NA), # añade borde al panel
+      axis.line = element_line(colour = "black"),
+      plot.tag = element_text(face = 'bold')
+    )
+}
+
+# Crear gráficos
+plot1 <- w.getis_sf %>% 
+  filter(type_plasmodium == "prevalence_pf_recent") %>% 
+  create_plot(variable = LISA_clust) +
+  theme(
+    plot.tag.position = c(0, 1.05)
+  )
+
+plot2 <- w.getis_sf %>% 
+  filter(type_plasmodium == "prevalence_pv_recent") %>% 
+  create_plot(variable = LISA_clust) +
+  theme(
+    plot.tag.position = c(0.015, 1.05),
+    plot.margin = margin(0, 0, 0, 0.5, "cm")
+  )
+
+# Combinar gráficos
+combined_plot <- plot1 + plot2 +
+  plot_layout(guides = "collect") + # une las guías de los dos gráficos
+  plot_annotation(
+    title = "Spatial Analysis for Recent Exposure",
+    theme = theme(
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
+    )
+  )
+```
+
+```{r eval = FALSE}
+ggsave("02_output/plots/Fig 5. Spatial Analysis for Recent Exposure raster.png",
+       combined_plot,
+       dpi = 400,
+       width = 12,
+       height = 7,
+       device = grDevices::png)
+```
+
+
+### Ploting - Figure 5
+
+
+```{r}
+plot3 <- w.getis_sf %>% 
+  filter(type_plasmodium == "prevalence_pf_historic") %>% 
+  create_plot(variable = LISA_clust) +
+  theme(
+    plot.tag.position = c(0, 1.05),
+    plot.margin = margin(0, 0, 0, 0, "cm")
+  )
+
+plot4 <- w.getis_sf %>% 
+  filter(type_plasmodium == "prevalence_pv_historic") %>% 
+  create_plot(variable = LISA_clust) +
+  theme(
+    plot.tag.position = c(0.015, 1.05),
+    plot.margin = margin(0, 0, 0, 0.5, "cm")
+  )
+
+# Combinar gráficos
+combined_plot2 <- plot3 + plot4 +
+  plot_layout(guides = "collect") + # une las guías de los dos gráficos
+  plot_annotation(
+    title = "Spatial Analysis for Historical Exposure",
+    theme = theme(
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
+    )
+  )
+```
+
+```{r eval = FALSE}
+ggsave("02_output/plots/Fig 5. Spatial Analysis for Historic Exposure raster.png",
+       combined_plot2,
+       dpi = 400,
+       width = 12,
+       height = 7,
+       device = grDevices::png)
+```
+
+### Final Figure 5
+```{r}
+combined_plot_total <- (plot1 + plot2) / (plot3 + plot4) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "a")
+```
+
+```{r eval = FALSE}
+ggsave("02_output/plots/Fig 5. Spatial Analysis for Type of Exposure raster.png",
+       combined_plot_total,
+       dpi = 300,
+       width = 12,
+       height = 14,
+       device = grDevices::png)
+
+ggsave("02_output/plots/Fig 5. Spatial Analysis for Type of Exposure raster.tiff",
+       combined_plot_total,
+       dpi = 300,
+       width = 12,
+       height = 14)
+```
+
+
+```{r}
+ffi_w.getis_simply <- ffi_w.getis %>% 
+  select(ffi_is_district, ffi_is_community, ffi_is_cod_household ,
+         type_plasmodium, LISA_clust)
+
+saveRDS(ffi_w.getis_simply,
+        file = "01_data/processed/ffi_w.getis_simply.rds")
+```
+
+# Supplementary Figure 1
+
+## Format
+
+```{r}
+cases_noti <- noti %>% 
+  mutate(
+    Date = as_date(FECHA_NOT),
+    Month = floor_date(Date, "month"),
+    Week = floor_date(Date, "week"),
+    Yearly = floor_date(Date, "year")
+  ) %>% 
+  filter(DEPARTAM == "LORETO") %>%  
+  filter(ANO >= 2014) 
+```
+
+```{r}
+noti1 <- cases_noti %>%
+  group_by(ANO, DISTRITO) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  full_join(
+    noti_inei,
+    by = c("DISTRITO" = "District")
+  ) %>%
+  complete(ANO,
+    fill = list(n = 0),
+    nesting(DISTRITO, pop2017)
+  ) %>%
+  filter(ANO == 2018) %>%
+  group_by(DISTRITO) %>%
+  summarise(
+    malaria = sum(n),
+    pop_fixed = pop2017
+  ) %>%
+  ungroup() %>%
+  mutate(
+    pop = mean(pop_fixed),
+    api = ((malaria * 1000) / pop),
+    api_fixed = ((malaria * 1000) / pop_fixed),
+    api_cat = cut(api,
+      breaks = c(-Inf, 100, 250, 450, Inf),
+      labels = c("Very Low", "Low", "Moderate", "High")
+    ),
+    api_cat_fixed = cut(api_fixed,
+      breaks = c(-Inf, 100, 250, 450, Inf),
+      labels = c("Very Low", "Low", "Moderate", "High")
+    )
+  )
+```
+
+```{r}
+noti_map <- Peru %>% 
+  filter(dep == "LORETO") %>% 
+  right_join(noti1,
+             by = c("distr" = "DISTRITO"))
+```
+
+## Ploting
+
+```{r}
+map1_con <- ggplot(noti_map) + 
+  geom_sf(data = noti_map,
+          aes(fill = api_fixed, geometry = geometry)) +
+  innovar::scale_fill_innova("ccvi", discrete = FALSE,
+                             reverse = TRUE,
+                             na.value = "black",
+                             name="API (2018)",
+                             limits=c(0,1100),
+                             breaks=c(0,10,100,1000),
+                             trans=scales::pseudo_log_trans(base = 10)) +
+  
+  theme_classic() +
+  theme(
+    axis.text.x = element_blank(),axis.text.y = element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.ticks.y=element_blank(), 
+    panel.border = element_blank(),
+    axis.line = element_blank()
+   ) +
+  xlab("") + ylab("") +
+  ggspatial::annotation_scale(location='br') +
+  ggspatial::annotation_north_arrow(pad_x = unit(3.7, "in"),
+                                    pad_y = unit(0.5, "in"))
+map1_con
+```
+
+```{r}
+ggsave("02_output/plots/map1_continuous.png",map1_con, width = 6, height = 6, units = "in", dpi = 300)
+ggsave("02_output/plots/map1_continuous.svg",map1_con, width = 6, height = 6, units = "in", dpi = 300)
+ggsave("02_output/plots/map1_continuous.tiff",map1_con, width = 6, height = 6, units = "in", dpi = 300)
+```
+
+
+
+
