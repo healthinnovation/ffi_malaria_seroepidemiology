@@ -84,7 +84,7 @@ fig1_malaria_api_belen_indiana_A_1 <- data_malaria_long_f %>%
   labs(
     title = bquote('Confirmed ' * italic('P. Falciparum')),
     x = NULL,
-    y = "API"
+    y = "API per 1,000 people"
   ) +
   innovar::scale_color_innova("npr") +
   theme_minimal(base_size = 10) +
@@ -825,7 +825,7 @@ map1_con <- ggplot(noti_map) +
   innovar::scale_fill_innova("ccvi", discrete = FALSE,
                              reverse = TRUE,
                              na.value = "black",
-                             name="API (2018)",
+                             name="API per 1,000 \npeople (2018)",
                              limits=c(0,1100),
                              breaks=c(0,10,100,1000),
                              trans=scales::pseudo_log_trans(base = 10)) +
@@ -836,7 +836,8 @@ map1_con <- ggplot(noti_map) +
     axis.ticks.x=element_blank(),
     axis.ticks.y=element_blank(), 
     panel.border = element_blank(),
-    axis.line = element_blank()
+    axis.line = element_blank(),
+    legend.title = element_text(margin = margin(b = 10))
    ) +
   xlab("") + ylab("") +
   ggspatial::annotation_scale(location='br') +
