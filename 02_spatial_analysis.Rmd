@@ -893,12 +893,6 @@ map1_con
 ```
 
 ```{r}
-ggsave("02_output/plots/map1_continuous.png",map1_con, width = 6, height = 6, units = "in", dpi = 300)
-ggsave("02_output/plots/map1_continuous.svg",map1_con, width = 6, height = 6, units = "in", dpi = 300)
-ggsave("02_output/plots/map1_continuous.tiff",map1_con, width = 6, height = 6, units = "in", dpi = 300)
-```
-
-```{r}
 peru_shp2 <- peru_shp %>%
   mutate(highlight = ifelse(dep == "LORETO", "Loreto", NA))
 
