@@ -712,15 +712,6 @@ ggsave(
 )
 
 ggsave(
-  "02_output/plots/Sup Fig 4. Local Indicator of Spatial Association by Communities.eps",
-  combined_plot_lisa_communities,
-  width = 10,
-  height = 12,
-  dpi = 300,
-  bg = "white"
-)
-
-ggsave(
   "02_output/plots/Sup Fig 4. Local Indicator of Spatial Association by Communities.tiff",
   combined_plot_lisa_communities,
   width = 10,
