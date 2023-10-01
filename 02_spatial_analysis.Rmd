@@ -82,7 +82,7 @@ fig1_malaria_api_belen_indiana_A_1 <- data_malaria_long_f %>%
     limits = c(0, max(max_cases_malaria$cases))
   ) +
   labs(
-    title = bquote('Confirmed ' * italic('P. Falciparum')),
+    title = bquote('Confirmed ' * italic('P. falciparum')),
     x = NULL,
     y = "API per 1,000 people"
   ) +
@@ -104,7 +104,7 @@ fig1_malaria_api_belen_indiana_A_2 <- data_malaria_long_f %>%
     limits = c(0, max(max_cases_malaria$cases))
   ) +
   labs(
-    title = bquote('Confirmed ' * italic('P. Vivax')),
+    title = bquote('Confirmed ' * italic('P. vivax')),
     x = NULL,
     y = NULL
   ) +
@@ -810,6 +810,15 @@ noti1 <- cases_noti %>%
 ```
 
 ```{r}
+peru_shp <- Peru %>% 
+  group_by(dep) %>% 
+  summarise() 
+
+indiana_belen <- Peru %>% 
+  filter(dep == "LORETO",
+         distr %in% c("INDIANA", "BELEN"))
+
+
 noti_map <- Peru %>% 
   filter(dep == "LORETO") %>% 
   right_join(noti1,
@@ -851,6 +860,46 @@ ggsave("02_output/plots/map1_continuous.png",map1_con, width = 6, height = 6, un
 ggsave("02_output/plots/map1_continuous.svg",map1_con, width = 6, height = 6, units = "in", dpi = 300)
 ggsave("02_output/plots/map1_continuous.tiff",map1_con, width = 6, height = 6, units = "in", dpi = 300)
 ```
+
+```{r}
+peru_shp2 <- peru_shp %>%
+  mutate(highlight = ifelse(dep == "LORETO", "Loreto", NA))
+
+# Paso 3: Crear un gráfico inserto
+insert_map <- ggplot(peru_shp2) +
+  geom_sf(aes(fill = highlight)) +
+  scale_fill_manual(values = c("Loreto" = "grey"), na.value = "white") +
+  geom_sf(data = indiana_belen, fill = "grey20") +
+  theme_void() +
+  theme(legend.position = "none") +
+  labs(fill = NULL)
+```
+
+
+```{r}
+# Combinar los gráficos
+final_map_sup <- ggdraw() + 
+  draw_plot(map1_con) +
+  draw_plot(insert_map,
+    height = 0.3,
+    x = -0.38,
+    y = 0.1
+  ) +
+  geom_curve(
+    aes(x = 0.09, y = 0.55, xend = 0.07, yend = 0.35),
+    arrow = arrow(length = unit(0.03, "npc"))
+  )
+
+```
+
+
+
+```{r}
+ggsave("02_output/plots/map1_continuous.png",final_map_sup, width = 6, height = 6, units = "in", dpi = 300)
+ggsave("02_output/plots/map1_continuous.svg",final_map_sup, width = 6, height = 6, units = "in", dpi = 300)
+ggsave("02_output/plots/map1_continuous.tiff",final_map_sup, width = 6, height = 6, units = "in", dpi = 300)
+```
+
 
 
 
