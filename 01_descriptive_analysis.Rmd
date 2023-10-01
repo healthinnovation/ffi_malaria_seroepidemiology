@@ -37,6 +37,17 @@ conflicted::conflicts_prefer(dplyr::filter())
 ```{r}
 ffi_total_simply <- readRDS("01_data/share/ffi_total_simply.rds")
 ffi_w.getis_simply <- readRDS("01_data/share/ffi_w.getis_simply.rds")
+
+ffi_total_simply <- ffi_total_simply %>% 
+  mutate(
+    distance_to_rh_hf_sampl = fct_recode(
+      distance_to_rh_hf_sampl,
+      "Proximate Distance" = "Proximate",
+      "Medium Distance" = "Moderate",
+      "Long Distance" = "Distant",
+      "Extreme Distance" = "Extra Distant"
+    )
+  )
 ```
 
 # Figures
@@ -53,8 +64,10 @@ sero_timeofmalaria_district_distance_rh_hf_sampling <- seropositivy_summarise(
   ungroup() %>% 
   mutate(
     distance_to_rh_hf_sampl = fct_relevel(distance_to_rh_hf_sampl, 
-                                      "Proximate", "Moderate",
-                                      "Distant", "Extra Distant")
+                                          "Proximate Distance",
+                                          "Medium Distance",
+                                          "Long Distance",
+                                          "Extreme Distance")
   ) %>% 
   ggplot(
     aes(
@@ -66,23 +79,24 @@ sero_timeofmalaria_district_distance_rh_hf_sampling <- seropositivy_summarise(
   ) +
   geom_point() +
   geom_line() +
+  geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper, fill = exposure), alpha = 0.1) +
   facet_grid(
     vars(distance_to_rh_hf_sampl),
     vars(ffi_is_district)    
   ) +
   scale_y_continuous(
-    labels = scales::percent_format(),
-    #limits = c(0, 0.50)
+    labels = scales::percent_format()
   ) +
   labs(
     x = "Age",
-    y = "Seropositivity Rate",
-    # title = str_wrap("Seropositivity according to Time of Exposure to malaria by District and distance category of the communities to Loreto Regional Hospital and Health Facilities on a Sampling Basis", 80)
+    y = "Seropositivity Rate"
   ) +
   guides(
-    color = guide_legend("Malaria")
+    color = guide_legend("Malaria"),
+    fill = guide_legend("Malaria")
   ) +
   innovar::scale_color_innova("npr") +
+  innovar::scale_fill_innova("npr") +
   theme_bw() +
   theme(
     plot.title = element_text(
@@ -840,3 +854,38 @@ table2_ind %>%
   as_flex_table() %>%
   flextable::save_as_docx(path = "./02_output/reports/Characteristics of study population by P.vivax and falciparum exposure.docx")
 ```
+
+
+
+
+
+
+
+```{r}
+drugs_behavior <- ffi_total %>% 
+  select(ffi_is_access_malaria_yn_hf, ffi_is_antimal_drug_use) %>% 
+  drop_na() %>% 
+  mutate(
+    ffi_is_access_malaria_yn_hf = factor(ffi_is_access_malaria_yn_hf,
+                                         labels = c("No", "Yes"))
+  )
+
+chisq.test(drugs_behavior$ffi_is_access_malaria_yn_hf, drugs_behavior$ffi_is_antimal_drug_use)
+
+# Crear la tabla de contingencia
+tab <- table(drugs_behavior$ffi_is_access_malaria_yn_hf, drugs_behavior$ffi_is_antimal_drug_use)
+# Calcular el tamaño total de la muestra
+n <- sum(tab)
+
+# Calcular el valor de Chi-cuadrada
+X_squared <- sum(chisq.test(tab)$statistic)
+
+# Calcular el coeficiente de contingencia
+C <- sqrt(X_squared / (n + X_squared))
+C
+
+library(epitools)
+OR_result <- oddsratio(tab)
+OR_result
+```
+
