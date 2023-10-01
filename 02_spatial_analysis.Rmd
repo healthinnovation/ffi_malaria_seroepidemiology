@@ -277,28 +277,34 @@ plot_recent_exposure <- ffi_household_gps %>%
           linewidth = 0.5, fill = NA,
           linetype = "dashed") +
   geom_sf(data = iquitos_centro,
-          aes(shape = "Loreto Regional Hospital"),
+          aes(shape = "Loreto Regional \nHospital"),
           size = 3) +
   scale_color_gradientn(colors = colorPalette) +
   scale_shape_manual(values = c(
     "Households" = 19,
-    "Loreto Regional Hospital" = 17
+    "Loreto Regional \nHospital" = 17
   )) + 
   labs(
     #title = "Recent Exposure",
     color = "Household Seropositivity \nRate",
-    shape = NULL
+    shape = NULL,
+    x = NULL,
+    y = NULL
   ) +
   guides(
     color = guide_colorbar(order = 1), 
     shape = guide_legend(order = 2)  
   ) +
-  annotate("text", x = -73.3, y = -3.7, label = "Belen") +
-  annotate("text", x = -73.1, y = -3.45, label = "Indiana") +
+  annotate("text", x = -73.172, y = -3.71, label = "Belen", size = 6, angle = 45) +
+  annotate("text", x = -72.95, y = -3.71, label = "Indiana", size = 6) +
+  scale_x_continuous(
+    breaks = seq(-73.4, -72.8, 0.20)
+  ) +
   theme_classic(base_size = 12) +
   theme(
     legend.title = element_text(
-      face = "bold"
+      face = "bold",
+      margin = margin(b = 10)
     ),
     plot.title = element_text(
       face = "bold",
@@ -311,7 +317,11 @@ plot_recent_exposure <- ffi_household_gps %>%
                                 fill = NA), 
     axis.line = element_line(colour = "black"),
     plot.tag.position = c(0, 1),
-    plot.tag = element_text(face = 'bold')
+    plot.tag = element_text(face = 'bold'),
+    axis.text = element_text(size = 12),
+    legend.key.height = unit(1.8, "lines"), # Ajusta el alto de la clave de la leyenda
+    legend.key.size = unit(1.8, "lines"),   # Ajusta el tamaño de la clave de la leyenda
+    legend.text = element_text(size = 12)
   ) 
 
 plot_historical_exposure <- ffi_household_gps %>% 
@@ -333,43 +343,52 @@ plot_historical_exposure <- ffi_household_gps %>%
           linewidth = 0.5, fill = NA,
           linetype = "dashed") +
   geom_sf(data = iquitos_centro,
-          aes(shape = "Loreto Regional Hospital"),
+          aes(shape = "Loreto Regional \nHospital"),
           size = 3) +
   scale_color_gradientn(colors = colorPalette) +
   scale_shape_manual(values = c(
     "Households" = 19,
-    "Loreto Regional Hospital" = 17
+    "Loreto Regional \nHospital" = 17
   )) +
   labs(
     #title = "Historical Exposure",
     color = "Household Seropositivity \nRate",
-    shape = NULL
+    shape = NULL,
+    x = NULL,
+    y = NULL
   ) +
   guides(
     color = guide_colorbar(order = 1),
     shape = guide_legend(order = 2)  
   ) +
-  annotate("text", x = -73.3, y = -3.7, label = "Belen") +
-  annotate("text", x = -73.1, y = -3.45, label = "Indiana") +
+  annotate("text", x = -73.172, y = -3.71, label = "Belen", size = 6, angle = 50) +
+  annotate("text", x = -72.95, y = -3.71, label = "Indiana", size = 6) +
+  scale_x_continuous(
+    breaks = seq(-73.4, -72.8, 0.20)
+  ) +
   theme_classic(base_size = 12) +
-    theme(
-      legend.title = element_text(
-        face = "bold"
-      ),
-      plot.title = element_text(
-        face = "bold",
-        hjust = 0.5
-      ),
-      strip.text = element_text(
-        face = "bold"
-      ),
-      panel.border = element_rect(colour = "black",
-                                  fill = NA),
-      axis.line = element_line(colour = "black"),
-      plot.tag.position = c(0, 1),
-      plot.margin = margin(0, 0, 0, 0.5, "cm"),
-      plot.tag = element_text(face = 'bold')
-    ) 
+  theme(
+    legend.title = element_text(
+      face = "bold",
+      margin = margin(b = 10)
+    ),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5
+    ),
+    strip.text = element_text(
+      face = "bold"
+    ),
+    panel.border = element_rect(colour = "black",
+                                fill = NA), 
+    axis.line = element_line(colour = "black"),
+    plot.tag.position = c(0, 1),
+    plot.tag = element_text(face = 'bold'),
+    axis.text = element_text(size = 12),
+    legend.key.height = unit(1.8, "lines"), # Ajusta el alto de la clave de la leyenda
+    legend.key.size = unit(1.8, "lines"),   # Ajusta el tamaño de la clave de la leyenda
+    legend.text = element_text(size = 12)
+  ) 
 ```
 
 ```{r}
@@ -634,7 +653,8 @@ create_plot <- function(data, title = NULL, variable) {
     labs(color = "Local Indicator of \nSpatial Association",
          alpha = "Local Indicator of \nSpatial Association",
          title = title,
-         x = NULL) +
+         x = NULL,
+         y = NULL) +
     annotate("text", x = -73.3, y = -3.7, label = "Belen") +
     annotate("text", x = -73.1, y = -3.45, label = "Indiana") +
     theme_classic(base_size = 12) +
