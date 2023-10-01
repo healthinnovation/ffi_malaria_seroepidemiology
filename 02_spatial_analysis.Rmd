@@ -293,6 +293,8 @@ plot_recent_exposure <- ffi_household_gps %>%
     color = guide_colorbar(order = 1), 
     shape = guide_legend(order = 2)  
   ) +
+  annotate("text", x = -73.3, y = -3.7, label = "Belen") +
+  annotate("text", x = -73.1, y = -3.45, label = "Indiana") +
   theme_classic(base_size = 12) +
   theme(
     legend.title = element_text(
@@ -347,6 +349,8 @@ plot_historical_exposure <- ffi_household_gps %>%
     color = guide_colorbar(order = 1),
     shape = guide_legend(order = 2)  
   ) +
+  annotate("text", x = -73.3, y = -3.7, label = "Belen") +
+  annotate("text", x = -73.1, y = -3.45, label = "Indiana") +
   theme_classic(base_size = 12) +
     theme(
       legend.title = element_text(
@@ -619,7 +623,7 @@ create_plot <- function(data, title = NULL, variable) {
             linetype = "dashed") +
     scale_color_manual(
       values = c("#03595c", "#5dafa6", "#87cdb5",
-                 "#D3D3D3",
+                 "grey40",
                  "#efc38f", "#e88245", "#e2634b"),
       drop = FALSE
     ) +
@@ -629,11 +633,15 @@ create_plot <- function(data, title = NULL, variable) {
     ) +
     labs(color = "Local Indicator of \nSpatial Association",
          alpha = "Local Indicator of \nSpatial Association",
-         title = title) +
+         title = title,
+         x = NULL) +
+    annotate("text", x = -73.3, y = -3.7, label = "Belen") +
+    annotate("text", x = -73.1, y = -3.45, label = "Indiana") +
     theme_classic(base_size = 12) +
     theme(
       legend.title = element_text(
-        face = "bold"
+        face = "bold",
+        size = 15
       ),
       plot.title = element_text(
         face = "bold",
@@ -645,7 +653,12 @@ create_plot <- function(data, title = NULL, variable) {
       panel.border = element_rect(colour = "black",
                                   fill=NA), # añade borde al panel
       axis.line = element_line(colour = "black"),
-      plot.tag = element_text(face = 'bold')
+      plot.tag = element_text(face = 'bold'),
+      axis.text = element_text(size = 11),
+      legend.text = element_text(size = 14),
+      legend.key.height = unit(1.8, "lines"), # Ajusta el alto de la clave de la leyenda
+      legend.key.size = unit(1.8, "lines"),   # Ajusta el tamaño de la clave de la leyenda
+      legend.spacing.y = unit(0.2, "inches")  # Ajusta el espacio entre las leyendas
     )
 }
 
@@ -728,8 +741,8 @@ ggsave("02_output/plots/Fig 5. Spatial Analysis for Historic Exposure raster.png
 
 ### Final Figure 5
 ```{r}
-combined_plot_total <- (plot1 + plot2) / (plot3 + plot4) +
-  plot_layout(guides = "collect") +
+combined_plot_total <- (plot1 + plot2) / plot_spacer() / (plot3 + plot4) +
+  plot_layout(guides = "collect", heights = c(4, -0.1, 4)) +
   plot_annotation(tag_levels = "a")
 ```
 
@@ -738,13 +751,13 @@ ggsave("02_output/plots/Fig 5. Spatial Analysis for Type of Exposure raster.png"
        combined_plot_total,
        dpi = 300,
        width = 12,
-       height = 14,
+       height = 11.5,
        device = grDevices::png)
 
 ggsave("02_output/plots/Fig 5. Spatial Analysis for Type of Exposure raster.tiff",
        combined_plot_total,
        dpi = 300,
-       width = 12,
+       width = 11.5,
        height = 14)
 ```
 
