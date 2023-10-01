@@ -87,10 +87,11 @@ fig1_malaria_api_belen_indiana_A_1 <- data_malaria_long_f %>%
     y = "API per 1,000 people"
   ) +
   innovar::scale_color_innova("npr") +
-  theme_minimal(base_size = 10) +
+  theme_minimal(base_size = 11) +
   theme(
     legend.position = "bottom",
-    plot.title = element_text(hjust = 0.5)
+    plot.title = element_text(hjust = 0.5),
+    axis.text = element_text(size = 11),
   )
 
 fig1_malaria_api_belen_indiana_A_2 <- data_malaria_long_f %>% 
@@ -109,10 +110,11 @@ fig1_malaria_api_belen_indiana_A_2 <- data_malaria_long_f %>%
     y = NULL
   ) +
   innovar::scale_color_innova("npr") +
-  theme_minimal(base_size = 10) +
+  theme_minimal(base_size = 11) +
   theme(
     legend.position = "bottom",
-    plot.title = element_text(hjust = 0.5)
+    plot.title = element_text(hjust = 0.5),
+    axis.text = element_text(size = 11),
   )
 ```
 
@@ -164,7 +166,12 @@ fig1_malaria_api_belen_indiana_B <- data_malaria_long %>%
                 color = "black", linewidth = 2) +
   annotate("text", label = "Very low \ntransmission",
            y = 80, x = lubridate::ymd("2019-01-01")) +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5),
+    axis.text = element_text(size = 11),
+  )
 
 fig1_malaria_api_belen_indiana_B
 ```
