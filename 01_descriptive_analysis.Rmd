@@ -505,15 +505,24 @@ plot_ratio_lisa_communities_pf_belen <- ffi_w.getis_simply %>%
     x = NULL,
     fill = "Local Indicator of \nSpatial Association"
   ) + 
-  theme_minimal() +
+  theme_minimal(base_size = 12) +
   theme(
-    strip.text = ggtext::element_markdown(),
+    strip.text = ggtext::element_markdown(size = 14),
     axis.title.x = element_blank(),
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
     plot.tag = element_text(face = 'bold'),
     plot.tag.position = c(0, 0.98),
-    plot.margin = margin(0, 0, 0, 0, "cm")
+    plot.margin = margin(0, 0, 0, 0, "cm"),
+    legend.title = element_text(
+        face = "bold",
+        size = 15
+      ),
+    legend.text = element_text(
+      size = 14
+    ),
+    axis.text.y = element_text(size = 12),
+    legend.margin = margin(l = -0.5, unit = "cm")
   )
 
 plot_ratio_lisa_communities_pf_belen
@@ -549,19 +558,28 @@ plot_ratio_lisa_communities_pv_belen <- ffi_w.getis_simply %>%
     x = NULL,
     fill = "Local Indicator of \nSpatial Association"
   ) + 
-  theme_minimal() +
+  theme_minimal(base_size = 12) +
   theme(
     axis.text.x = element_text(
       angle = 60, 
       hjust = 1, 
       #vjust = 0.5, 
-      size = 9,
+      size = 10.5,
       lineheight = 0.85
     ),
-    strip.text = ggtext::element_markdown(),
+    strip.text = ggtext::element_markdown(size = 14),
     plot.tag = element_text(face = 'bold'),
     plot.tag.position = c(0, 0.98),
-    plot.margin = margin(0, 0, 0, 0, "cm")
+    plot.margin = margin(0, 0, 0, 0, "cm"),
+    legend.title = element_text(
+        face = "bold",
+        size = 15
+      ),
+    legend.text = element_text(
+      size = 14
+    ),
+    axis.text.y = element_text(size = 12),
+    legend.margin = margin(l = -0.5, unit = "cm")
   )
 
 plot_ratio_lisa_communities_pv_belen
@@ -596,15 +614,24 @@ plot_ratio_lisa_communities_pf_indiana <- ffi_w.getis_simply %>%
     x = NULL,
     fill = "Local Indicator of \nSpatial Association"
   ) + 
-  theme_minimal() +
+  theme_minimal(base_size = 12) +
   theme(
-    strip.text = ggtext::element_markdown(),
+    strip.text = ggtext::element_markdown(size = 14),
     axis.title.x = element_blank(),
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
     plot.tag = element_text(face = 'bold'),
     plot.tag.position = c(0, 0.98),
-    plot.margin = margin(0, 0, 0, 0, "cm")
+    plot.margin = margin(0, 0, 0, 0, "cm"),
+    legend.title = element_text(
+        face = "bold",
+        size = 15
+      ),
+    legend.text = element_text(
+      size = 14
+    ),
+    axis.text.y = element_text(size = 12),
+    legend.margin = margin(l = -0.5, unit = "cm")
   )
 
 plot_ratio_lisa_communities_pf_indiana
@@ -640,34 +667,43 @@ plot_ratio_lisa_communities_pv_indiana <- ffi_w.getis_simply %>%
     x = NULL,
     fill = "Local Indicator of \nSpatial Association"
   ) + 
-  theme_minimal() +
+  theme_minimal(base_size = 12) +
   theme(
     axis.text.x = element_text(
       angle = 60, 
       hjust = 1, 
       #vjust = 0.5, 
-      size = 9,
+      size = 10.5,
       lineheight = 0.85
     ),
-    strip.text = ggtext::element_markdown(),
+    strip.text = ggtext::element_markdown(size = 14),
     plot.tag = element_text(face = 'bold'),
     plot.tag.position = c(0, 0.98),
-    plot.margin = margin(0, 0, 0, 0, "cm")
+    plot.margin = margin(0, 0, 0, 0, "cm"),
+    legend.title = element_text(
+        face = "bold",
+        size = 15
+      ),
+    legend.text = element_text(
+      size = 14
+    ),
+    axis.text.y = element_text(size = 12),
+    legend.margin = margin(l = -0.5, unit = "cm")
   )
 
 plot_ratio_lisa_communities_pv_indiana
 ```
 
 ```{r}
-combined_plot_lisa_communities <- plot_ratio_lisa_communities_pf_belen / plot_ratio_lisa_communities_pv_belen /
+combined_plot_lisa_communities <- plot_ratio_lisa_communities_pf_belen / plot_ratio_lisa_communities_pv_belen / plot_spacer() /
   plot_ratio_lisa_communities_pf_indiana / plot_ratio_lisa_communities_pv_indiana +
-  plot_layout(guides = "collect") + # une las guías de los dos gráficos
+  plot_layout(guides = "collect", heights = c(2, 2, -0.1, 2, 2)) + # une las guías de los dos gráficos
   plot_annotation(tag_levels = "a")
 ```
 
 ```{r}
 ggsave(
-  "02_output/plots/Fig 8. Local Indicator of Spatial Association by Communities.png",
+  "02_output/plots/Sup Fig 4. Local Indicator of Spatial Association by Communities.png",
   combined_plot_lisa_communities,
   width = 10,
   height = 12,
@@ -676,7 +712,7 @@ ggsave(
 )
 
 ggsave(
-  "02_output/plots/Fig 8. Local Indicator of Spatial Association by Communities.eps",
+  "02_output/plots/Sup Fig 4. Local Indicator of Spatial Association by Communities.eps",
   combined_plot_lisa_communities,
   width = 10,
   height = 12,
@@ -685,7 +721,7 @@ ggsave(
 )
 
 ggsave(
-  "02_output/plots/Fig 8. Local Indicator of Spatial Association by Communities.tiff",
+  "02_output/plots/Sup Fig 4. Local Indicator of Spatial Association by Communities.tiff",
   combined_plot_lisa_communities,
   width = 10,
   height = 12,
