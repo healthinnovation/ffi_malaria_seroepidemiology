@@ -109,9 +109,13 @@ sero_timeofmalaria_district_distance_rh_hf_sampling <- seropositivy_summarise(
       face = "bold"
     ),
     legend.title = element_text(
-      size = 12,
+      size = 15,
       face = "bold"
-    )
+    ),
+    legend.text = element_text(size = 14),
+    axis.text.x = element_text(size = 11),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_text(size = 13)
   )
 
 sero_timeofmalaria_district_distance_rh_hf_sampling
