@@ -446,8 +446,8 @@ communities_distances_hf_sampling_cat <- communities_distances_hf_sampling_cat %
   mutate(
     distance_to_hf_sampl = as.numeric(cut_number(distance_to_hf_sampl_num, 4)),
     distance_to_hf_sampl = factor(distance_to_hf_sampl, 
-                                  labels = c("Proximate", "Moderate",
-                                             "Distant", "Extra Distant"))
+                                  labels = c("Proximate Distance", "Medium Distance",
+                                             "Long Distance", "Extreme Distance"))
   ) %>% 
   ungroup()
 ```
@@ -490,8 +490,8 @@ communities_distances_rh_sampling <- enframe(communities_distances_rh_sampling) 
   mutate(
     distance_to_rh_sampl = as.numeric(cut_number(distance_to_rh_sampl_num, 4)),
     distance_to_rh_sampl = factor(distance_to_rh_sampl, 
-                                  labels = c("Proximate", "Moderate",
-                                             "Distant", "Extra Distant"))
+                                  labels = c("Proximate Distance", "Medium Distance",
+                                             "Long Distance", "Extreme Distance"))
   ) %>% 
   ungroup()
 ```
@@ -533,9 +533,9 @@ ffi_total <- ffi_total %>%
   group_by(ffi_is_district) %>% 
   mutate(
     distance_to_rh_hf_sampl = as.numeric(cut_number(distance_to_rh_hf_sampl_num, 4)),
-    distance_to_rh_hf_sampl = factor(distance_to_rh_hf_sampl, 
-                                     labels = c("Proximate", "Moderate",
-                                                "Distant", "Extra Distant"))
+    distance_to_rh_hf_sampl = factor(distance_to_rh_hf_sampl,
+                                     labels = c("Proximate Distance", "Medium Distance",
+                                                "Long Distance", "Extreme Distance"))
   ) %>% 
   ungroup()
 
@@ -543,6 +543,16 @@ ffi_total <- ffi_total %>%
 labelled::var_label(ffi_total) <- list(
   distance_to_rh_hf_sampl = "Distance Category to Regional Hospital and Health Facilities"
 )
+
+
+ffi_total %>% 
+  group_by(ffi_is_district, distance_to_rh_hf_sampl) %>% 
+  summarise(
+    min = min(distance_to_rh_hf_sampl_num),
+    max = max(distance_to_rh_hf_sampl_num),
+    mean = mean(distance_to_rh_hf_sampl_num),
+    median = median(distance_to_rh_hf_sampl_num)
+  )
 ```
 
 # Distance Group about communities (Method Census)
@@ -610,7 +620,6 @@ comunidades_info_adic <- comunidades_info_total %>%
 comunidades_info_total <- comunidades_info_total %>%
   filter(!st_is_empty(geometry)) %>%
   distinct(MNOMCP, .keep_all = TRUE) %>%
-  mutate()
   bind_rows(
     comunidades_info_adic
   )
@@ -672,10 +681,10 @@ communities_distances_hf_cat <- communities_distances_hf_total %>%
     distance_to_hf_census = factor(
       distance_to_hf_census,
       labels = c(
-        "Proximate",
-        "Moderate",
-        "Distant",
-        "Extra Distant"
+        "Proximate Distance",
+        "Medium Distance",
+        "Long Distance",
+        "Extreme Distance"
       )
     )
   ) %>%
@@ -684,11 +693,13 @@ communities_distances_hf_cat <- communities_distances_hf_total %>%
     communities_distances_hf_total %>%
       filter(ffi_is_health_facility_name == "SOLEDAD DE VILLA BELEN") %>%
       mutate(
-        distance_to_hf_census = factor("Moderate", 
-                                       levels = c("Proximate",
-                                                  "Moderate",
-                                                  "Distant",
-                                                  "Extra Distant"))
+        distance_to_hf_census = factor("Medium Distance", 
+                                       levels = c(
+                                        "Proximate Distance",
+                                        "Medium Distance",
+                                        "Long Distance",
+                                        "Extreme Distance"
+                                      ))
       )
   ) %>% 
   mutate(ffi_is_district = str_to_title(ffi_is_district)) %>% 
@@ -727,16 +738,15 @@ communities_distances_rh <- comunidades_info_total %>%
 communities_distances_rh_cat <- communities_distances_rh %>%
   drop_na(distance_to_rh_census_num) %>%
   arrange(ffi_is_district, distance_to_rh_census_num) %>%
-  group_by(ffi_is_district) %>%
   mutate(
     distance_to_rh_census = as.numeric(cut_number(distance_to_rh_census_num, 4)),
     distance_to_rh_census = factor(
       distance_to_rh_census,
       labels = c(
-        "Proximate",
-        "Moderate",
-        "Distant",
-        "Extra Distant"
+        "Proximate Distance",
+        "Medium Distance",
+        "Long Distance",
+        "Extreme Distance"
       )
     )
   ) %>%
@@ -748,10 +758,17 @@ communities_distances_rh_cat <- communities_distances_rh %>%
 Update info:
 
 ```{r}
-ffi_total <- ffi_total %>% 
-  left_join(
-    communities_distances_rh_cat
-  )
+# ffi_total <- ffi_total %>% 
+#   left_join(
+#     communities_distances_rh_cat
+#   )
+# 
+# ffi_total %>% 
+#   # slice(82, 783) %>% 
+#   select(ffi_is_community, ffi_is_district) %>% 
+#   left_join(
+#     communities_distances_rh_cat
+#   )
 ```
 
 
