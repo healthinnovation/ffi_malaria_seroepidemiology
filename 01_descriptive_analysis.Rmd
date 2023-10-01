@@ -228,10 +228,10 @@ malaria_seropositivity_type_exposure_belen <- ffi_total_simply %>%
   filter(ffi_is_district == "Belen") %>%
   mutate(
     malaria = case_when(
-      malaria == "pf_recent" ~ "Recent *P. Falciparum*",
-      malaria == "pf_historic" ~ "Historical *P. Falciparum*",
-      malaria == "pv_recent" ~ "Recent *P. Vivax*",
-      malaria == "pv_historic" ~ "Historical *P. Vivax*"
+      malaria == "pf_recent" ~ "Recent *P. falciparum*",
+      malaria == "pf_historic" ~ "Historical *P. falciparum*",
+      malaria == "pv_recent" ~ "Recent *P. vivax*",
+      malaria == "pv_historic" ~ "Historical *P. vivax*"
     ),
     ffi_is_community = str_to_title(ffi_is_community),
     ffi_is_community = fct_reorder(
@@ -263,18 +263,22 @@ malaria_seropositivity_type_exposure_belen <- ffi_total_simply %>%
   theme(
     axis.title = element_text(
       face = "bold",
+      size = 13
+    ),
+    axis.text.y = element_text(
       size = 12
     ),
-    axis.text = element_text(
+    axis.text.x = element_text(
       size = 11
     ),
     legend.title = element_text(
       face = "bold",
-      size = 11
+      size = 14
     ),
+    legend.text = element_text(size = 13),
     strip.text = ggtext::element_markdown(
       face = "bold",
-      size = 11
+      size = 12
     ),
     plot.tag.position = c(0, 1),
     plot.tag = element_text(face = 'bold')
@@ -327,10 +331,10 @@ malaria_seropositivity_type_exposure_indiana <- ffi_total_simply %>%
   ) %>%
   mutate(
     malaria = case_when(
-      malaria == "pf_recent" ~ "Recent *P. Falciparum*",
-      malaria == "pf_historic" ~ "Historical *P. Falciparum*",
-      malaria == "pv_recent" ~ "Recent *P. Vivax*",
-      malaria == "pv_historic" ~ "Historical *P. Vivax*"
+      malaria == "pf_recent" ~ "Recent *P. falciparum*",
+      malaria == "pf_historic" ~ "Historical *P. falciparum*",
+      malaria == "pv_recent" ~ "Recent *P. vivax*",
+      malaria == "pv_historic" ~ "Historical *P. vivax*"
     ),
     ffi_is_community = str_to_title(ffi_is_community),
   ) %>%
@@ -366,19 +370,23 @@ malaria_seropositivity_type_exposure_indiana <- ffi_total_simply %>%
   theme(
     strip.text = ggtext::element_markdown(
       face = "bold",
-      size = 11
+      size = 12
     ),
     axis.title = element_text(
       face = "bold",
+      size = 13
+    ),
+    axis.text.y = element_text(
       size = 12
     ),
-    axis.text = element_text(
+    axis.text.x = element_text(
       size = 11
     ),
     legend.title = element_text(
       face = "bold",
-      size = 11
+      size = 14
     ),
+    legend.text = element_text(size = 13),
     plot.tag.position = c(0.015, 1),
     plot.margin = margin(0, 0, 0, 0.5, "cm"),
     plot.tag = element_text(face = 'bold')
