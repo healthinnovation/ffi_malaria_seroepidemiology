@@ -164,6 +164,202 @@ ggsave(
 )
 ```
 
+## Figure 3 - Alt
+
+```{r}
+sero_typeofmalaria_district_distance_rh_hf_sampling <- seropositivy_summarise(
+    ffi_total_simply,
+    "typeofmalaria",
+    age_cat,
+    distance_to_rh_hf_sampl
+  ) %>%
+  ungroup() %>% 
+  mutate(
+    distance_to_rh_hf_sampl = fct_relevel(distance_to_rh_hf_sampl, 
+                                          "Proximate Distance",
+                                          "Medium Distance",
+                                          "Long Distance",
+                                          "Extreme Distance")
+  ) %>% 
+  ggplot(
+    aes(
+      x = age_cat,
+      y = result_exposure,
+      color = exposure,
+      group = exposure
+    )
+  ) +
+  geom_point() +
+  geom_line() +
+  geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper, fill = exposure), alpha = 0.1) +
+  facet_grid(
+    vars(distance_to_rh_hf_sampl),
+    vars(ffi_is_district)    
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format()
+  ) +
+  labs(
+    x = "Age",
+    y = "Seropositivity Rate"
+  ) +
+  guides(
+    color = guide_legend("Malaria"),
+    fill = guide_legend("Malaria")
+  ) +
+  innovar::scale_color_innova("npr") +
+  innovar::scale_fill_innova("npr") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(
+      size = 14,
+      hjust = 0.5,
+      face = "bold"
+    ),
+    strip.text = element_text(
+      size = 12,
+      face = "bold"
+    ),
+    legend.title = element_text(
+      size = 15,
+      face = "bold"
+    ),
+    legend.text = element_text(size = 14),
+    axis.text.x = element_text(size = 11),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_text(size = 13)
+  )
+
+sero_typeofmalaria_district_distance_rh_hf_sampling
+```
+
+```{r eval=FALSE}
+ggsave(
+  "./02_output/plots/Fig 3. Seropositivity according to type of exposure to malaria by district and distance category.png",
+  sero_typeofmalaria_district_distance_rh_hf_sampling,
+  dpi = 300,
+  bg = "white",
+  width = 12,
+  height = 8.5
+)
+
+ggsave(
+  "./02_output/plots/Fig 3. Seropositivity according to type of exposure to malaria by district and distance category.eps",
+  sero_typeofmalaria_district_distance_rh_hf_sampling,
+  dpi = 300,
+  bg = "white",
+  width = 12,
+  height = 8.5
+)
+
+ggsave(
+  "./02_output/plots/Fig 3. Seropositivity according to type of exposure to malaria by district and distance category.tiff",
+  sero_typeofmalaria_district_distance_rh_hf_sampling,
+  dpi = 300,
+  bg = "white",
+  width = 12,
+  height = 8.5
+)
+```
+
+## Figure 3 - Alt 2
+
+```{r}
+sero_4malaria_district_distance_rh_hf_sampling <- seropositivy_summarise(
+    ffi_total_simply,
+    "4malaria",
+    age_cat,
+    distance_to_rh_hf_sampl
+  ) %>%
+  ungroup() %>% 
+  mutate(
+    distance_to_rh_hf_sampl = fct_relevel(distance_to_rh_hf_sampl, 
+                                          "Proximate Distance",
+                                          "Medium Distance",
+                                          "Long Distance",
+                                          "Extreme Distance")
+  ) %>% 
+  ggplot(
+    aes(
+      x = age_cat,
+      y = result_malaria,
+      color = malaria,
+      group = malaria
+    )
+  ) +
+  geom_point() +
+  geom_line() +
+  geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper, fill = malaria), alpha = 0.1) +
+  facet_grid(
+    vars(distance_to_rh_hf_sampl),
+    vars(ffi_is_district)    
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format()
+  ) +
+  labs(
+    x = "Age",
+    y = "Seropositivity Rate"
+  ) +
+  guides(
+    color = guide_legend("Malaria"),
+    fill = guide_legend("Malaria")
+  ) +
+  innovar::scale_color_innova("npr") +
+  innovar::scale_fill_innova("npr") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(
+      size = 14,
+      hjust = 0.5,
+      face = "bold"
+    ),
+    strip.text = element_text(
+      size = 12,
+      face = "bold"
+    ),
+    legend.title = element_text(
+      size = 15,
+      face = "bold"
+    ),
+    legend.text = element_text(size = 14),
+    axis.text.x = element_text(size = 11),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_text(size = 13)
+  )
+
+sero_4malaria_district_distance_rh_hf_sampling
+```
+
+```{r eval=FALSE}
+ggsave(
+  "./02_output/plots/Fig 3. Seropositivity according to 4 malaria by district and distance category.png",
+  sero_4malaria_district_distance_rh_hf_sampling,
+  dpi = 300,
+  bg = "white",
+  width = 12,
+  height = 8.5
+)
+
+ggsave(
+  "./02_output/plots/Fig 3. Seropositivity according to 4 malaria by district and distance category.eps",
+  sero_4malaria_district_distance_rh_hf_sampling,
+  dpi = 300,
+  bg = "white",
+  width = 12,
+  height = 8.5
+)
+
+ggsave(
+  "./02_output/plots/Fig 3. Seropositivity according to 4 malaria by district and distance category.tiff",
+  sero_4malaria_district_distance_rh_hf_sampling,
+  dpi = 300,
+  bg = "white",
+  width = 12,
+  height = 8.5
+)
+```
+
 ## Segmented regression
 
 ```{r}
