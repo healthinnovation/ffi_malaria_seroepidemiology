@@ -35,20 +35,34 @@ conflicted::conflicts_prefer(dplyr::filter())
 # Import data
 
 ```{r}
-ffi_total_simply <- readRDS("01_data/share/ffi_total_simply.rds")
+ffi_total_simply <- readRDS("01_data/processed/ffi_total.rds")
 ffi_w.getis_simply <- readRDS("01_data/share/ffi_w.getis_simply.rds")
 
-ffi_total_simply <- ffi_total_simply %>% 
-  mutate(
-    distance_to_rh_hf_sampl = fct_recode(
-      distance_to_rh_hf_sampl,
-      "Proximate Distance" = "Proximate",
-      "Medium Distance" = "Moderate",
-      "Long Distance" = "Distant",
-      "Extreme Distance" = "Extra Distant"
-    )
-  )
+# ffi_total_simply <- ffi_total_simply %>% 
+#   mutate(
+#     distance_to_rh_hf_sampl = fct_recode(
+#       distance_to_rh_hf_sampl,
+#       "Proximate Distance" = "Proximate",
+#       "Medium Distance" = "Moderate",
+#       "Long Distance" = "Distant",
+#       "Extreme Distance" = "Extra Distant"
+#     )
+#   )
 ```
+
+```{r}
+ffi_total_simply %>% 
+  mutate(
+    UR = case_match(
+      ffi_is_community,
+      c("URB. BAGAZAN", "PUEBLO LIBRE",
+        "PP.JJ. SANTO CRISTO BAGAZAN") ~ "Urban",
+      .default = "Rural"
+    )
+  ) %>% 
+  count(distance_to_rh_hf_sampl, UR)
+```
+
 
 # Figures
 
@@ -736,28 +750,20 @@ fisher.test.simulate.p.values <- function(data, variable, by, ...) {
 }
 ```
 
-## Table for district
+## Table for district - Table 1
 
-### Individuals
+```{r}
+labelled::var_label(ffi_total_simply) <- list(ffi_is_district = "Districs")
+```
+
 
 ```{r}
 table_1_ind <- ffi_total_simply %>%
   select(
     ffi_is_district,
     gender,
-    ffi_is_age,
     education_level,
     economic_activities2,
-    ffi_is_trip_month,
-    ffi_is_place_shower,
-    ffi_is_place_sleep,
-    ffi_is_mosq_net,
-    ffi_is_mosq_net_freq,
-    ffi_is_fever_month,
-    ffi_is_malaria,
-    ffi_is_symp_month_head,
-    ffi_is_symp_month_musclejoint,
-    ffi_is_symp_month_general,
     pf_exposure,
     pv_exposure,
     distance_to_rh_hf_sampl
@@ -793,14 +799,14 @@ table_1_ind %>%
 ```
 
 
-## Table for Plasmodium and Exposure Time
+## Table for Plasmodium and Exposure Time - Table 2
 
 ```{r}
 table2_ind <- ffi_total_simply %>%
   select(
     ffi_is_district,
     gender,
-    ffi_is_age,
+    age_cat,
     economic_activities2,
     ffi_is_trip_month,
     ffi_is_place_shower,
@@ -856,7 +862,7 @@ table2_ind_overall <- ffi_total_simply %>%
   select(
     ffi_is_district,
     gender,
-    ffi_is_age,
+    age_cat,
     economic_activities2,
     ffi_is_trip_month,
     ffi_is_place_shower,
@@ -895,6 +901,183 @@ table2_ind %>%
 ```
 
 
+## Table for Plasmodium and Exposure Time - Supplementary Table 2
+
+```{r}
+ffi_total_simply <- ffi_total_simply %>%
+  mutate(
+    age_cat2 = fct_collapse(
+      age_cat,
+      `[0-20)` = c("[0-10)", "[10-20)"),
+      `[20+)` = c("[20-30)", "[30-40)", "[40-50)", "[50-60)", "[60-70)", "[70+)")
+    )
+  )
+
+
+table3_ind_1 <- ffi_total_simply %>% 
+  filter(age_cat2 == "[0-20)") %>% 
+  select(
+    ffi_is_district,
+    gender,
+    education_level,
+    economic_activities2,
+    pf_recent:pv_historic
+  ) %>%
+  drop_na(pf_recent:pv_historic) %>%
+  pivot_longer(
+    cols = pf_recent:pv_historic,
+    names_to = "exposure",
+    values_to = "result_exposure"
+  ) %>%
+  mutate(
+    exposure = case_when(
+      exposure == "pf_recent" ~ "P. Falciparum Recent",
+      exposure == "pf_historic" ~ "P. Falciparum Historical",
+      exposure == "pv_recent" ~ "P. Vivax Recent",
+      exposure == "pv_historic" ~ "P. Vivax Historical"
+      ),
+    exposure = factor(exposure,
+                      levels = c("P. Vivax Recent",
+                                 "P. Vivax Historical",
+                                 "P. Falciparum Recent",
+                                 "P. Falciparum Historical"))
+  ) %>%
+  tbl_strata(
+  strata = exposure,
+  .tbl_fun =
+    ~ .x %>%
+        tbl_summary(
+          by = result_exposure,
+          missing = "no",
+          #missing_text = "Missing",
+          #type = all_dichotomous() ~ "categorical",
+          digits = everything() ~ c(0, 1)
+        ) %>%
+        add_p(
+          test = list(all_categorical() ~ "fisher.test.simulate.p.values"),
+          pvalue_fun = scales::pvalue
+        ) %>%
+        bold_p() %>%
+        modify_header(label = "**Variable**") %>%
+        bold_labels() 
+  ) 
+
+table3_ind_1_overall <- ffi_total_simply %>%
+  filter(age_cat2 == "[0-20)") %>% 
+  select(
+    ffi_is_district,
+    gender,
+    education_level,
+    economic_activities2
+  ) %>%
+  tbl_summary(
+    missing = "no",
+    # missing_text = "Missing",
+    # type = all_dichotomous() ~ "categorical",
+    digits = everything() ~ c(0, 1)
+  ) %>%
+  modify_header(
+    label = "**Variable**"
+  ) %>%
+  bold_labels() %>%
+  modify_spanning_header(stat_0 ~ "**Overall**")
+
+table3_ind_1 <- tbl_merge(
+  tbls = list(table3_ind_1, table3_ind_1_overall),
+  tab_spanner = FALSE
+)
+
+table3_ind_1
+```
+
+```{r eval=FALSE}
+table3_ind_1 %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path = "./02_output/reports/sup_table_3_1.docx")
+```
+
+```{r}
+table3_ind_2 <- ffi_total_simply %>% 
+  filter(age_cat2 == "[20+)") %>% 
+  select(
+    ffi_is_district,
+    gender,
+    education_level,
+    economic_activities2,
+    pf_recent:pv_historic
+  ) %>%
+  drop_na(pf_recent:pv_historic) %>%
+  pivot_longer(
+    cols = pf_recent:pv_historic,
+    names_to = "exposure",
+    values_to = "result_exposure"
+  ) %>%
+  mutate(
+    exposure = case_when(
+      exposure == "pf_recent" ~ "P. Falciparum Recent",
+      exposure == "pf_historic" ~ "P. Falciparum Historical",
+      exposure == "pv_recent" ~ "P. Vivax Recent",
+      exposure == "pv_historic" ~ "P. Vivax Historical"
+      ),
+    exposure = factor(exposure,
+                      levels = c("P. Vivax Recent",
+                                 "P. Vivax Historical",
+                                 "P. Falciparum Recent",
+                                 "P. Falciparum Historical"))
+  ) %>%
+  tbl_strata(
+  strata = exposure,
+  .tbl_fun =
+    ~ .x %>%
+        tbl_summary(
+          by = result_exposure,
+          missing = "no",
+          #missing_text = "Missing",
+          #type = all_dichotomous() ~ "categorical",
+          digits = everything() ~ c(0, 1)
+        ) %>%
+        add_p(
+          test = list(all_categorical() ~ "fisher.test.simulate.p.values"),
+          pvalue_fun = scales::pvalue
+        ) %>%
+        bold_p() %>%
+        modify_header(label = "**Variable**") %>%
+        bold_labels() 
+  ) 
+
+table3_ind_2_overall <- ffi_total_simply %>%
+  filter(age_cat2 == "[20+)") %>% 
+  select(
+    ffi_is_district,
+    gender,
+    education_level,
+    economic_activities2
+  ) %>%
+  tbl_summary(
+    missing = "no",
+    # missing_text = "Missing",
+    # type = all_dichotomous() ~ "categorical",
+    digits = everything() ~ c(0, 1)
+  ) %>%
+  modify_header(
+    label = "**Variable**"
+  ) %>%
+  bold_labels() %>%
+  modify_spanning_header(stat_0 ~ "**Overall**")
+
+table3_ind_2 <- tbl_merge(
+  tbls = list(table3_ind_2, table3_ind_2_overall),
+  tab_spanner = FALSE
+)
+
+table3_ind_2
+```
+
+```{r eval=FALSE}
+table3_ind_2 %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path = "./02_output/reports/sup_table_3_2.docx")
+```
 
 
 
@@ -902,12 +1085,37 @@ table2_ind %>%
 
 ```{r}
 drugs_behavior <- ffi_total %>% 
-  select(ffi_is_access_malaria_yn_hf, ffi_is_antimal_drug_use) %>% 
+  pivot_longer(
+    cols = pf_recent:pv_historic,
+    names_to = "malaria",
+    values_to = "seropositivity"
+  ) %>% 
+  select(malaria, seropositivity, ffi_is_access_malaria_yn_hf, ffi_is_antimal_drug_use) %>% 
   drop_na() %>% 
   mutate(
     ffi_is_access_malaria_yn_hf = factor(ffi_is_access_malaria_yn_hf,
                                          labels = c("No", "Yes"))
   )
+
+drugs_behavior %>% 
+  group_by(malaria) %>% 
+  summarise(
+    broom::tidy(
+      chisq.test(seropositivity, ffi_is_access_malaria_yn_hf)
+    )
+  )
+drugs_behavior %>% 
+  group_by(malaria) %>% 
+  summarise(
+    broom::tidy(
+      chisq.test(seropositivity, ffi_is_antimal_drug_use)
+    )
+  )
+
+ffi_total %>% 
+  select(pf_historic, ffi_is_access_malaria_yn_hf) %>% 
+  drop_na() %>% 
+  table()
 
 chisq.test(drugs_behavior$ffi_is_access_malaria_yn_hf, drugs_behavior$ffi_is_antimal_drug_use)
 

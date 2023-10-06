@@ -186,8 +186,8 @@ ffi_total <- ffi_total %>%
                            "Fisherman",
                            "Livestock farmer",
                            "Farmer"),
-      "Housewife/student" = c("Housewife",
-                              "Student"),
+      # "Housewife/student" = c("Housewife",
+      #                         "Student"),
       "Others" = c("Motorcycle taxi driver",
                    "Other")
     ),
