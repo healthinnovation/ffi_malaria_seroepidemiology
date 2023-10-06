@@ -26,7 +26,12 @@ seropositivy_summarise <- function(data, type, variable, ...) {
         )
       ) %>%
       group_by(ffi_is_district, {{ variable }}, ..., malaria) %>%
-      summarise(result_malaria = mean(result_malaria))  %>%
+      summarise(
+        result_malaria = mean(result_malaria),
+        ci_lower = mean(result_malaria) - 1.96 * sqrt(mean(result_malaria) * (1 - mean(result_malaria)) / n()),
+        ci_upper = mean(result_malaria) + 1.96 * sqrt(mean(result_malaria) * (1 - mean(result_malaria)) / n()),
+        ci_lower = pmax(0, ci_lower)
+      ) %>%
       ungroup()
   } else if (type == "typeofmalaria" ) {
     data %>%
@@ -51,7 +56,12 @@ seropositivy_summarise <- function(data, type, variable, ...) {
         )
       ) %>%
       group_by(ffi_is_district, {{ variable }}, ..., exposure) %>%
-      summarise(result_exposure = mean(result_exposure)) %>%
+      summarise(
+        result_exposure = mean(result_exposure),
+        ci_lower = mean(result_exposure) - 1.96 * sqrt(mean(result_exposure) * (1 - mean(result_exposure)) / n()),
+        ci_upper = mean(result_exposure) + 1.96 * sqrt(mean(result_exposure) * (1 - mean(result_exposure)) / n()),
+        ci_lower = pmax(0, ci_lower)
+      ) %>%
       ungroup()
   } else if (type == "timeofmalaria") {
     data %>%
