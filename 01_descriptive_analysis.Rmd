@@ -179,7 +179,11 @@ sero_typeofmalaria_district_distance_rh_hf_sampling <- seropositivy_summarise(
                                           "Proximate Distance",
                                           "Medium Distance",
                                           "Long Distance",
-                                          "Extreme Distance")
+                                          "Extreme Distance"),
+    exposure = case_when(
+      exposure == "P. Falciparum Exposure" ~ "*P. Falciparum* Exposure",
+      exposure == "P. Vivax Exposure" ~ "*P. Vivax* Exposure"
+    )
   ) %>% 
   ggplot(
     aes(
@@ -224,7 +228,9 @@ sero_typeofmalaria_district_distance_rh_hf_sampling <- seropositivy_summarise(
       size = 15,
       face = "bold"
     ),
-    legend.text = element_text(size = 14),
+    legend.text = ggtext::element_markdown(
+      size = 14
+    ),
     axis.text.x = element_text(size = 11),
     axis.text.y = element_text(size = 12),
     axis.title = element_text(size = 13)
@@ -277,7 +283,13 @@ sero_4malaria_district_distance_rh_hf_sampling <- seropositivy_summarise(
                                           "Proximate Distance",
                                           "Medium Distance",
                                           "Long Distance",
-                                          "Extreme Distance")
+                                          "Extreme Distance"),
+    malaria = case_when(
+      malaria == "Recent P. Falciparum" ~ "Recent *P. falciparum*",
+      malaria == "Historical P. Falciparum" ~ "Historical *P. falciparum*",
+      malaria == "Recent P. Vivax" ~ "Recent *P. vivax*",
+      malaria == "Historical P. Vivax" ~ "Historical *P. vivax*"
+    ),
   ) %>% 
   ggplot(
     aes(
@@ -322,7 +334,9 @@ sero_4malaria_district_distance_rh_hf_sampling <- seropositivy_summarise(
       size = 15,
       face = "bold"
     ),
-    legend.text = element_text(size = 14),
+    legend.text = ggtext::element_markdown(
+      size = 14
+    ),
     axis.text.x = element_text(size = 11),
     axis.text.y = element_text(size = 12),
     axis.title = element_text(size = 13)
